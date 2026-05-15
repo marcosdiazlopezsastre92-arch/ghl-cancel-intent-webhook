@@ -8,7 +8,7 @@ const {
   getConversationMessages,
   getContact,
   updateContact,
-  findActiveFutureAppointmentForContact,
+  findAllActiveFutureAppointmentsForContact,
   setAppointmentStatus,
 } = require('./ghlClient');
 const logger = require('./logger');
@@ -17,30 +17,24 @@ function mapDelayToOption(days) {
   return CUSTOM_FIELDS.FOLLOWUP_DELAY.options[days] || null;
 }
 
-// GHL accepts customFields in a few shapes; we try them in order.
 async function setContactCustomField({ authorization, contactId, fieldId, value }) {
-  // Get current contact to merge customFields safely.
   const cur = await getContact({ authorization, contactId });
   if (!cur.ok) return { ok: false, stage: 'get-contact', errors: cur.errors };
   const contact = cur.contact || {};
   const existing = Array.isArray(contact.customFields) ? contact.customFields : [];
 
-  // Merge: replace if same id, else append.
   const merged = existing.filter((cf) => (cf.id || cf.field_id) !== fieldId);
   merged.push({ id: fieldId, value });
 
-  // Try shape #1: { customFields: [{id, value}] }
   const shape1 = await updateContact({ authorization, contactId, body: { customFields: merged } });
   if (shape1.ok) return { ok: true, shape: 'customFields[id,value]', response: shape1.response };
 
-  // Try shape #2: same but using field_value
   const shape2 = await updateContact({
     authorization, contactId,
     body: { customFields: merged.map((cf) => ({ id: cf.id, field_value: cf.value })) },
   });
   if (shape2.ok) return { ok: true, shape: 'customFields[id,field_value]', response: shape2.response };
 
-  // Try shape #3: customField (singular) wrapper map
   const map = {};
   for (const cf of merged) map[cf.id] = cf.value;
   const shape3 = await updateContact({ authorization, contactId, body: { customField: map } });
@@ -79,7 +73,6 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
       },
     };
   }
-  // Pick the most recently updated conversation (usually the active one).
   const convs = [...convRes.conversations].sort((a, b) => {
     const ta = new Date(a.lastMessageDate || a.dateUpdated || 0).getTime();
     const tb = new Date(b.lastMessageDate || b.dateUpdated || 0).getTime();
@@ -121,34 +114,47 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
     };
   }
 
-  // For both cancel_* intents we need to find the active future appointment.
-  const appRes = await findActiveFutureAppointmentForContact({
+  // For both cancel_* intents we need to find ALL active future appointments and noshow each.
+  const appRes = await findAllActiveFutureAppointmentsForContact({
     authorization, locationId: LOCATION_ID, contactId,
   });
   if (!appRes.ok) {
-    return { status: 502, json: { ok: false, error: 'Failed to find appointment', errors: appRes.errors } };
+    return { status: 502, json: { ok: false, error: 'Failed to find appointments', errors: appRes.errors } };
   }
-  if (!appRes.appointment) {
-    warnings.push('No active future appointment found for contact');
+  const appointments = appRes.appointments || [];
+  if (appointments.length === 0) {
+    warnings.push('No active future appointments found for contact');
   }
-  const appointment = appRes.appointment;
   const actionsTaken = [];
 
-  // 4a) Mark appointment as no-show.
-  if (appointment) {
+  // 4a) Mark every active future appointment as no-show.
+  for (const appointment of appointments) {
     if (dryRun) {
-      actionsTaken.push({ type: 'noshow-appointment', appointmentId: appointment.id, dryRun: true });
+      actionsTaken.push({
+        type: 'noshow-appointment',
+        appointmentId: appointment.id,
+        startTime: appointment.startTime || appointment.start_time,
+        calendarId: appointment.calendarId,
+        dryRun: true,
+      });
+      continue;
+    }
+    const setRes = await setAppointmentStatus({ authorization, eventId: appointment.id, status: 'noshow' });
+    if (setRes.ok) {
+      actionsTaken.push({
+        type: 'noshow-appointment',
+        appointmentId: appointment.id,
+        startTime: appointment.startTime || appointment.start_time,
+        calendarId: appointment.calendarId,
+        version: setRes.version,
+        body: setRes.body,
+      });
     } else {
-      const setRes = await setAppointmentStatus({ authorization, eventId: appointment.id, status: 'noshow' });
-      if (setRes.ok) {
-        actionsTaken.push({ type: 'noshow-appointment', appointmentId: appointment.id, version: setRes.version, body: setRes.body });
-      } else {
-        errors.push({ type: 'noshow-appointment', error: 'all-shapes-failed' });
-      }
+      errors.push({ type: 'noshow-appointment', appointmentId: appointment.id, error: 'all-shapes-failed' });
     }
   }
 
-  // 4b) Set the right custom field.
+  // 4b) Set the right custom field (only one, regardless of how many appointments).
   let fieldUpdate = null;
   if (decision.intent === 'cancel_with_followup') {
     const optionLabel = mapDelayToOption(decision.followup_delay_days || 1);
@@ -188,7 +194,12 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
       bypass: cls.bypass || null,
       conversationId: conversation.id,
       messagesAnalyzed: msgsRes.messages.length,
-      appointment: appointment ? { id: appointment.id, startTime: appointment.startTime, calendarId: appointment.calendarId } : null,
+      foundActiveAppointments: appointments.length,
+      appointmentsTargeted: appointments.map((a) => ({
+        id: a.id,
+        startTime: a.startTime || a.start_time,
+        calendarId: a.calendarId,
+      })),
       actionsTaken,
       warnings,
       errors,

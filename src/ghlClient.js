@@ -111,14 +111,16 @@ async function listFutureEventsForCalendar({ authorization, locationId, calendar
   return { ok: true, events: Array.isArray(events) ? events : [] };
 }
 
-async function findActiveFutureAppointmentForContact({ authorization, locationId, contactId }) {
+// Returns ALL active future appointments for the contact across all calendars.
+// Sorted by startTime ascending (closest first).
+async function findAllActiveFutureAppointmentsForContact({ authorization, locationId, contactId }) {
   const calRes = await listCalendarsForLocation({ authorization, locationId });
   if (!calRes.ok) return { ok: false, errors: [{ stage: 'list-calendars', errors: calRes.errors }] };
 
   const now = new Date();
   const end = new Date(now.getTime() + FUTURE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const allEvents = [];
-  const errors = [];
+  const partialErrors = [];
 
   for (const cal of calRes.calendars) {
     if (cal.isActive === false) continue;
@@ -126,7 +128,7 @@ async function findActiveFutureAppointmentForContact({ authorization, locationId
       authorization, locationId, calendarId: cal.id, startDate: now, endDate: end,
     });
     if (!evRes.ok) {
-      errors.push({ calendarId: cal.id, errors: evRes.errors });
+      partialErrors.push({ calendarId: cal.id, errors: evRes.errors });
       continue;
     }
     for (const ev of evRes.events) {
@@ -135,7 +137,6 @@ async function findActiveFutureAppointmentForContact({ authorization, locationId
     }
   }
 
-  // Filter: contact match, future, not cancelled, not deleted.
   const contactsMatch = (ev) => {
     const cid = ev.contactId || ev.contact_id || ev.contact?.id || ev.contact?._id;
     return cid && String(cid) === String(contactId);
@@ -153,11 +154,11 @@ async function findActiveFutureAppointmentForContact({ authorization, locationId
   };
 
   const candidates = allEvents.filter((ev) => contactsMatch(ev) && isFuture(ev) && isActive(ev));
-  if (candidates.length === 0) return { ok: true, appointment: null, partialErrors: errors };
+  candidates.sort(
+    (a, b) => new Date(a.startTime || a.start_time) - new Date(b.startTime || b.start_time)
+  );
 
-  // Closest in time wins.
-  candidates.sort((a, b) => new Date(a.startTime || a.start_time) - new Date(b.startTime || b.start_time));
-  return { ok: true, appointment: candidates[0], partialErrors: errors };
+  return { ok: true, appointments: candidates, partialErrors };
 }
 
 async function setAppointmentStatus({ authorization, eventId, status }) {
@@ -181,6 +182,6 @@ module.exports = {
   getConversationMessages,
   getContact,
   updateContact,
-  findActiveFutureAppointmentForContact,
+  findAllActiveFutureAppointmentsForContact,
   setAppointmentStatus,
 };
