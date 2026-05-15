@@ -11,6 +11,10 @@ const { isAudioMessage, isNonAudioMediaOnly, classifyAttachments } = require('./
 const { transcribeAudiosInPlace } = require('./transcribe');
 const { messageContainsRescheduleLink, hasRecentRescheduleLink } = require('./rescheduleDetector');
 
+// When a reschedule link was recently sent the prompt is more ambiguous; we
+// require higher confidence before acting, to reduce false positives.
+const RESCHEDULE_CONTEXT_THRESHOLD = 0.90;
+
 const BENIGN_PHRASES = new Set([
   'vale', 'ok', 'okay', 'okey', 'oki', 'k', 'va', 'sip', 'si', 'sí', 'sii', 'siii',
   'genial', 'perfecto', 'perfectamente', 'perfect', 'great',
@@ -40,8 +44,6 @@ function isLastInboundBenign(messages) {
   if (!last) return false;
   if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
   if (isNonAudioMediaOnly(last) && !String(last.body || '').trim()) return false;
-  // CRITICAL: if a reschedule link was sent recently, never short-circuit.
-  // Even "vale" / "gracias" might be the lead's acceptance of the reschedule.
   if (hasRecentRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK)) return false;
   const norm = normalize(last.body || last.message || last.text || '');
   if (!norm) return true;
@@ -61,7 +63,6 @@ function formatMessagesForPrompt(messages, lookback) {
     const ts = m.dateAdded || m.dateCreated || m.createdAt || '';
     const dir = (m.direction || '').toLowerCase();
     let speaker = dir === 'inbound' ? 'Lead' : 'Coach';
-    // Prefix Coach messages that sent the reschedule link.
     if (dir === 'outbound' && messageContainsRescheduleLink(m)) {
       speaker = 'Coach [ENVIÓ ENLACE DE REAGENDAR]';
     }
@@ -97,13 +98,29 @@ REAGENDAR. Si en el historial ves un mensaje del Coach prefijado con el marcador
 REGLAS ESPECIALES CUANDO HAY [ENVIÓ ENLACE DE REAGENDAR] en el historial reciente:
 - Si el lead aceptó CLARAMENTE el reagendado después del link ("vale gracias", "perfecto",
   "dámelo", "miro y reagendo", "genial, lo cambio") → cancel_with_followup.
-- Si el lead RECHAZÓ explícitamente el reagendado después del link ("no no, mejor lo dejo",
-  "déjalo, sí voy", "olvídalo, iré") → no_action.
+- Si el lead RECHAZÓ explícitamente el reagendado o confirmó que IGUAL SÍ VA a la llamada
+  ("no, mejor lo dejo", "déjalo, sí voy", "olvídalo, iré", "al final sí puedo", "sí voy")
+  → no_action.
 - Si el lead respondió ambiguamente o no respondió ("déjame pensarlo", "luego te digo",
-  o silencio total) → no_action (conservador).
+  "vale" sin más, silencio total) → no_action (conservador).
+
+EJEMPLOS CRÍTICOS POST-ENLACE (lee el mensaje COMPLETO del lead, no solo la primera palabra):
+  Lead: "no sé si podré asistir"
+  Coach [ENVIÓ ENLACE DE REAGENDAR]: "vale, aquí tienes el enlace para mover la llamada"
+  Lead: "vale, gracias"            → cancel_with_followup (aceptó)
+  Lead: "vale, lo cambio ahora"    → cancel_with_followup (aceptó)
+  Lead: "vale, sí puedo asistir"   → no_action (¡RECHAZÓ! va a ir igual)
+  Lead: "al final sí voy, gracias" → no_action (¡RECHAZÓ!)
+  Lead: "no no, déjalo, iré"        → no_action (¡RECHAZÓ!)
+  Lead: "vale" (sin más)           → no_action (ambiguo → conservador)
+  Lead: "déjame pensarlo"          → no_action (ambiguo)
+  Lead: "lo miro luego"            → no_action (ambiguo)
+
+IMPORTANTE: cualquier afirmación de que el lead VA a asistir ("sí puedo", "al final voy", "déjalo",
+"olvídalo", "iré", "sí voy") SIEMPRE gana sobre un "vale" inicial. NO cancelar la llamada en estos casos.
 
 INTENTS POSIBLES:
-- "no_action": conversación normal, confirmación, pregunta. NO TOCAR NADA.
+- "no_action": conversación normal, confirmación, pregunta, o lead reafirmó asistencia. NO TOCAR NADA.
 - "cancel_with_followup": el lead pide cancelar TODAS sus llamadas futuras (o ya aceptó
   reagendar tras un [ENVIÓ ENLACE DE REAGENDAR]) y se le debe poner en seguimiento automático.
 - "cancel_no_followup": cancelación DURA ("ya no me interesa", "voy con otro entrenador",
@@ -114,8 +131,8 @@ INTENTS POSIBLES:
 REGLAS GENERALES:
 - Mejor "no_action" si tienes la más mínima duda.
 - Confirmaciones cortas ("vale", "ok", "genial", "perfecto", "listo") por sí solas → no_action,
-  EXCEPTO cuando vienen justo después de un [ENVIÓ ENLACE DE REAGENDAR] del Coach (entonces son
-  aceptación del reagendado → cancel_with_followup).
+  EXCEPTO cuando vienen justo después de un [ENVIÓ ENLACE DE REAGENDAR] del Coach Y el lead las
+  acompaña con palabras de aceptación ("gracias", "dámelo", "lo cambio").
 - "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista que te paso. Si el lead
   no especifica cuál, asume TODAS (cancel_with_followup o cancel_no_followup).
 - Si solo hay 1 cita y dice "cancelélalo" sin especificar → cancel_with_followup con esa cita.
@@ -175,7 +192,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   const last = lastInboundMessage(messages);
   const rescheduleLinkSent = hasRecentRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK);
   if (rescheduleLinkSent) {
-    logger.info('reschedule link detected in recent context');
+    logger.info('reschedule link detected in recent context — higher threshold applies');
   }
 
   if (last && isNonAudioMediaOnly(last) && !String(last.body || '').trim()) {
@@ -220,7 +237,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     };
   }
 
-  // The whitelist already accounts for rescheduleLinkSent (returns false in that case).
   if (isLastInboundBenign(messages)) {
     return {
       ok: true, bypass: 'whitelist',
@@ -257,14 +273,17 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   }
 
   const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
-  const thr = threshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
-  if (parsed.intent !== 'no_action' && conf < thr) {
-    logger.info('classification below threshold → no_action', { confidence: conf, threshold: thr });
+  // Use a stricter threshold when a reschedule link was sent (ambiguous context).
+  const effectiveThreshold = threshold ?? (rescheduleLinkSent ? RESCHEDULE_CONTEXT_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
+  if (parsed.intent !== 'no_action' && conf < effectiveThreshold) {
+    logger.info('classification below threshold → no_action', {
+      confidence: conf, threshold: effectiveThreshold, rescheduleLinkSent,
+    });
     return {
       ok: true, bypass: 'low-confidence',
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
-                  reasoning: `Below threshold (${conf} < ${thr}). Original: ${parsed.reasoning || ''}` },
+                  reasoning: `Below threshold (${conf} < ${effectiveThreshold}). Original: ${parsed.reasoning || ''}` },
       claudeRaw: parsed, transcriptionStats, rescheduleLinkSent,
     };
   }
