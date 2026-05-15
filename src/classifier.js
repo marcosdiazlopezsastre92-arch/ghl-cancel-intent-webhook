@@ -145,7 +145,19 @@ REGLAS GENERALES:
 - Si está claro que hay cancelación pero dudas entre with_followup y no_followup → with_followup.
 - "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista. Si el lead no especifica
   cuál, asume TODAS las citas activas SIN el marcador POST-ENLACE.
-- Para el delay del seguimiento (cancel_with_followup):
+
+REGLA ESTRICTA SOBRE followup_delay_days:
+followup_delay_days SOLO puede tomar uno de estos valores: 1, 3, 7, o null.
+NUNCA devuelvas otro número. Aunque el lead diga "recuérdame en 5 días", "vuélveme a llamar
+en 2 semanas", "en 10 días", "el viernes" o cualquier otro plazo concreto, debes redondear
+SIEMPRE al valor válido más cercano siguiendo esta tabla:
+  - Plazo pedido = 1 o 2 días  → 1
+  - Plazo pedido = 3, 4 o 5 días → 3
+  - Plazo pedido = 6 días o más → 7
+  - Sin plazo / null → 1 (default)
+
+Para decidir el delay del seguimiento (cancel_with_followup) cuando el lead NO especifica un
+plazo concreto, usa el contexto:
   * 1 día (default): cancelación sin contexto especial
   * 3 días: malestar puntual ("dolor de cabeza", "estoy malo")
   * 7 días: enfermedad seria, viaje, agenda muy cargada ("esta semana fatal", "de viaje")
