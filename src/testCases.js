@@ -9,8 +9,8 @@ function mkFutureTs(daysAhead) {
 
 const RESCHEDULE_LINK = 'Aquí tienes el enlace para mover la llamada: https://api.leadconnectorhq.com/widget/bookings/round-normalrqpm6x';
 
-const APT_1 = { id: 'evt_FUTURE_001', startTime: mkFutureTs(1), calendarName: 'Calendario - VSL', dateAdded: mkTs(60 * 24 * 5) /* 5 days ago */ };
-const APT_2 = { id: 'evt_FUTURE_002', startTime: mkFutureTs(3), calendarName: 'Reagendar llamada', dateAdded: mkTs(60 * 24 * 3) /* 3 days ago */ };
+const APT_1 = { id: 'evt_FUTURE_001', startTime: mkFutureTs(1), calendarName: 'Calendario - VSL', dateAdded: mkTs(60 * 24 * 5) };
+const APT_2 = { id: 'evt_FUTURE_002', startTime: mkFutureTs(3), calendarName: 'LM', dateAdded: mkTs(60 * 24 * 3) };
 
 module.exports = [
   { name: 'G1-direct-cancel',
@@ -170,10 +170,6 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'cancel_with_followup',
   },
 
-  // ========== NEW: appointment created AFTER the link (lead actually rescheduled) ==========
-  // Marcos's exact case: lead asks for link, AI sends it, lead clicks and books NEW call,
-  // lead says "gracias". Active appointment list now shows the NEW post-link call.
-  // Should NOT cancel — the lead already rescheduled.
   { name: 'G3-rescheduled-then-thanks',
     messages: [
       { direction: 'inbound',  body: 'se me complica asistir, pásame para reagendar porfa', dateAdded: mkTs(15) },
@@ -181,8 +177,7 @@ module.exports = [
       { direction: 'inbound',  body: 'gracias!', dateAdded: mkTs(2) },
     ],
     appointments: [
-      // Active appointment created AFTER the link (the new reschedule)
-      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(8) /* created 8min ago, AFTER link at mkTs(12) */ },
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(8) },
     ],
     expectedIntent: 'no_action',
   },
@@ -194,7 +189,7 @@ module.exports = [
       { direction: 'inbound',  body: 'ah espera mira mejor cancela también esta nueva, no creo que pueda esta semana', dateAdded: mkTs(2) },
     ],
     appointments: [
-      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(15) /* AFTER link */ },
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(15) },
     ],
     expectedIntent: 'cancel_with_followup',
   },
@@ -205,11 +200,7 @@ module.exports = [
       { direction: 'inbound',  body: 'gracias!', dateAdded: mkTs(13) },
       { direction: 'inbound',  body: 'ah no espera al final puedo, déjalo', dateAdded: mkTs(2) },
     ],
-    appointments: [
-      // The lead's old appt is still active (didn't actually use the link in this scenario, even though they asked).
-      // Still should be no_action because the lead retracted.
-      APT_1,
-    ],
+    appointments: [APT_1],
     expectedIntent: 'no_action',
   },
 
