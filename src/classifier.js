@@ -165,18 +165,13 @@ dejar la cita colgando.
 Ejemplos: "mi madre está ingresada en el hospital", "se me ha jodido el día con un imprevisto",
 "tengo que llevar a mi hijo al médico de urgencia".
 
-DETECCIÓN DE CAMBIOS DE HORA LEVES (no son cancelación):
-Si el lead pide un pequeño ajuste de horario el MISMO día ("me das 15 min más", "podemos a las
-19 en vez de las 18", "un poco más tarde"), eso NO es cancelación: es solo un ajuste menor que
-gestiona el coach humano. Devuelve no_action.
-
 DETECCIÓN DE PREGUNTAS DE CONFIRMACIÓN (no son cancelación):
 Si el lead PREGUNTA si la llamada sigue en pie ("sigue en pie lo de hoy?", "confírmame que
 tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
-  silencio post-link, pequeño ajuste de hora, o lead ya reagendó (con marcador post-enlace).
+  silencio post-link, o lead ya reagendó (con marcador post-enlace).
 - "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
   POST-ENLACE) y se le debe poner en seguimiento automático. ES EL DEFAULT para cualquier
   cancelación con motivos no agresivos.

@@ -221,7 +221,6 @@ module.exports = [
     appointments: [
       { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(300) },
     ],
-    // Soft cancel — "no quiero tener la llamada" es soft, NO hard cancel.
     expectedIntent: 'cancel_with_followup', expectedIdsCount: 1,
   },
 
@@ -265,13 +264,12 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'no_action',
   },
 
-  // GROUP 6: Tricky language patterns
+  // GROUP 6: Tricky language patterns (time-tweak cases removed per Marcos)
   { name: 'G6-implicit-vague-aviso-luego',
     messages: [
       { direction: 'inbound', body: 'Marcos, mi madre está ingresada en el hospital, te aviso luego', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    // Updated: emergencia familiar grave → cancel_with_followup con 7d (Claude tiene razón)
     expectedIntent: 'cancel_with_followup',
   },
   { name: 'G6-implicit-cant-explicit',
@@ -287,20 +285,6 @@ module.exports = [
     ],
     appointments: [APT_1],
     expectedIntent: 'cancel_with_followup',
-  },
-  { name: 'G6-time-tweak-15min',
-    messages: [
-      { direction: 'inbound', body: 'Marcos, me das 15 minutos más? Voy a llegar un poco tarde', dateAdded: mkTs(2) },
-    ],
-    appointments: [APT_1],
-    expectedIntent: 'no_action',
-  },
-  { name: 'G6-time-tweak-same-day-shift',
-    messages: [
-      { direction: 'inbound', body: 'Podemos hacerla a las 19 en vez de las 18 hoy?', dateAdded: mkTs(2) },
-    ],
-    appointments: [APT_1],
-    expectedIntent: 'no_action',
   },
   { name: 'G6-question-still-on',
     messages: [
