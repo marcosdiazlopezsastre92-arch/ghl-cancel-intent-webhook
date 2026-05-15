@@ -264,14 +264,7 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'no_action',
   },
 
-  // GROUP 6: Tricky language patterns (time-tweak cases removed per Marcos)
-  { name: 'G6-implicit-vague-aviso-luego',
-    messages: [
-      { direction: 'inbound', body: 'Marcos, mi madre está ingresada en el hospital, te aviso luego', dateAdded: mkTs(2) },
-    ],
-    appointments: [APT_1],
-    expectedIntent: 'cancel_with_followup',
-  },
+  // GROUP 6: Tricky language patterns (only explicit-language cases kept)
   { name: 'G6-implicit-cant-explicit',
     messages: [
       { direction: 'inbound', body: 'Marcos, mi madre está en el hospital, no podré ir hoy', dateAdded: mkTs(2) },

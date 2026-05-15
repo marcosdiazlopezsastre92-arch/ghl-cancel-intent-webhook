@@ -157,14 +157,6 @@ SI HAY DUDA entre with_followup y no_followup → SIEMPRE elige cancel_with_foll
 seguirle insistiendo a un lead que está cansado que abandonar a un lead que solo no podía esa
 llamada concreta.
 
-DETECCIÓN DE EMERGENCIAS / IMPREVISTOS:
-Si el lead comunica una situación grave (familiar en hospital, urgencia médica, problema serio)
-aunque no diga "cancelar" explícitamente, asume que NO va a poder asistir y aplica
-cancel_with_followup con delay 7 días (situación seria). Mejor activar el seguimiento ya que
-dejar la cita colgando.
-Ejemplos: "mi madre está ingresada en el hospital", "se me ha jodido el día con un imprevisto",
-"tengo que llevar a mi hijo al médico de urgencia".
-
 DETECCIÓN DE PREGUNTAS DE CONFIRMACIÓN (no son cancelación):
 Si el lead PREGUNTA si la llamada sigue en pie ("sigue en pie lo de hoy?", "confírmame que
 tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
@@ -187,9 +179,8 @@ REGLAS GENERALES:
   cuál, asume TODAS las citas activas SIN el marcador POST-ENLACE.
 - Para el delay del seguimiento (cancel_with_followup):
   * 1 día (default): cancelación sin contexto especial
-  * 3 días: malestar puntual ("dolor de cabeza", "estoy malo", urgencia médica de hijo, etc.)
-  * 7 días: enfermedad seria, viaje, agenda muy cargada, emergencia familiar (madre ingresada,
-    hijo en urgencias, semana fatal, viaje toda la semana)
+  * 3 días: malestar puntual ("dolor de cabeza", "estoy malo")
+  * 7 días: enfermedad seria, viaje, agenda muy cargada ("esta semana fatal", "de viaje")
 
 Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional):
 {
