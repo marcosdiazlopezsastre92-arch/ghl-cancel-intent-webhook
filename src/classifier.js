@@ -27,12 +27,43 @@ function normalize(text) {
     .replace(/\s+/g, ' ');
 }
 
+// Detects voice/audio messages. GHL puts voice notes as attachments with
+// body="" so simple text checks miss them.
+function isAudioMessage(m) {
+  if (!m || typeof m !== 'object') return false;
+  const mt = String(m.messageType || m.message_type || '').toUpperCase();
+  if (mt.includes('VOICE') || mt.includes('AUDIO')) return true;
+  // GHL numeric type (legacy): some indicate voice/audio. Be conservative — only flag
+  // if type explicitly suggests audio.
+  const t = String(m.type || '').toUpperCase();
+  if (t.includes('VOICE') || t.includes('AUDIO')) return true;
+  // Check attachments for audio mime types or common audio extensions.
+  const atts = m.attachments;
+  if (Array.isArray(atts)) {
+    for (const a of atts) {
+      const mime = String(a?.mimetype || a?.mime || a?.contentType || a?.type || '').toLowerCase();
+      if (mime.startsWith('audio/')) return true;
+      const url = String(a?.url || a?.link || '').toLowerCase();
+      if (/\.(ogg|oga|mp3|m4a|wav|aac|opus|flac|webm)(\?|$)/.test(url)) return true;
+    }
+  } else if (typeof atts === 'string') {
+    if (/\.(ogg|oga|mp3|m4a|wav|aac|opus|flac|webm)/.test(atts.toLowerCase())) return true;
+  }
+  return false;
+}
+
+function lastInboundMessage(messages) {
+  const inbound = (messages || []).filter((m) => (m.direction || '').toLowerCase() === 'inbound');
+  return inbound.length ? inbound[inbound.length - 1] : null;
+}
+
 function isLastInboundBenign(messages) {
-  const inbound = messages.filter((m) => (m.direction || '').toLowerCase() === 'inbound');
-  if (inbound.length === 0) return false;
-  const last = inbound[inbound.length - 1];
+  const last = lastInboundMessage(messages);
+  if (!last) return false;
+  // Audio is NOT benign — we cannot read the content. Caller will route it elsewhere.
+  if (isAudioMessage(last)) return false;
   const norm = normalize(last.body || last.message || last.text || '');
-  if (!norm) return true;
+  if (!norm) return true; // truly empty (sticker, image-only, etc.)
   const words = norm.split(' ');
   if (words.length > 4) return false;
   return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
@@ -49,14 +80,15 @@ function formatMessagesForPrompt(messages, lookback) {
     const ts = m.dateAdded || m.dateCreated || m.createdAt || '';
     const dir = (m.direction || '').toLowerCase();
     const speaker = dir === 'inbound' ? 'Lead' : 'Coach';
-    const text = String(m.body || m.message || m.text || '').trim();
+    let text = String(m.body || m.message || m.text || '').trim();
+    if (!text && isAudioMessage(m)) text = '[mensaje de voz — sin transcribir]';
     return `[${ts}] ${speaker}: ${text}`;
   }).join('\n');
 }
 
 function formatAppointmentsForPrompt(appointments) {
   if (!appointments || appointments.length === 0) {
-    return '(El contacto no tiene citas futuras activas. Esto es raro — probablemente no_action.)';
+    return '(El contacto no tiene citas futuras activas.)';
   }
   return appointments.map((a, i) => {
     const start = a.startTime || a.start_time || '?';
@@ -113,8 +145,6 @@ function parseClaudeJson(text) {
   try { return JSON.parse(candidate); } catch { return null; }
 }
 
-// Validates and sanitizes the IDs Claude returned: only keeps ones that match
-// the active appointments list. Prevents Claude from hallucinating IDs.
 function validateAppointmentIds(claudeIds, activeAppointments) {
   const validIds = new Set(activeAppointments.map((a) => String(a.id)));
   const arr = Array.isArray(claudeIds) ? claudeIds : [];
@@ -128,7 +158,29 @@ function validateAppointmentIds(claudeIds, activeAppointments) {
 }
 
 async function classify({ messages, appointments, apiKey, model, threshold }) {
-  // 1) If no active appointments, no point in classifying — skip Claude.
+  // 0) AUDIO short-circuit — if the last inbound is a voice note we cannot
+  //    read its content. Skip Claude and emit a special intent so the operator
+  //    can review it manually in GHL. Avoids false positives & negatives.
+  const last = lastInboundMessage(messages);
+  if (last && isAudioMessage(last)) {
+    logger.info('audio detected on last inbound → skipping classification', {
+      messageId: last.id || last._id || null,
+      attachments: Array.isArray(last.attachments) ? last.attachments.length : 0,
+    });
+    return {
+      ok: true,
+      bypass: 'audio-detected',
+      decision: {
+        intent: 'audio_needs_review',
+        confidence: 1.0,
+        appointment_ids_to_noshow: [],
+        followup_delay_days: null,
+        reasoning: 'Last inbound is a voice/audio note — cannot be transcribed by this version. Manual review needed.',
+      },
+    };
+  }
+
+  // 1) If no active appointments, no point in classifying.
   if (!appointments || appointments.length === 0) {
     return {
       ok: true,
@@ -155,7 +207,7 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
   const userMessage =
     `LLAMADAS FUTURAS ACTIVAS DEL LEAD:\n${aptsBlock}\n\n` +
     `CONVERSACIÓN (de más antiguo a más reciente):\n\n${transcript}\n\n` +
-    `Devuelve sólo el JSON especificado, con appointment_ids_to_noshow como subconjunto de los ids listados arriba.`;
+    `Devuelve sólo el JSON especificado.`;
 
   // 4) Call Claude.
   const claudeRes = await callClaude({
@@ -172,14 +224,12 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
     return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text };
   }
 
-  // 5) Validate appointment IDs against the actual list.
   const { accepted, rejected } = validateAppointmentIds(parsed.appointment_ids_to_noshow, appointments);
   parsed.appointment_ids_to_noshow = accepted;
   if (rejected.length > 0) {
     logger.warn('claude returned invalid appointment ids — rejected', { rejected });
   }
 
-  // 6) Threshold check.
   const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
   const thr = threshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
   if (parsed.intent !== 'no_action' && conf < thr) {
@@ -194,7 +244,6 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
     };
   }
 
-  // 7) Sanity: if intent is cancel_* but no IDs survived validation, demote to no_action.
   if (parsed.intent !== 'no_action' && parsed.appointment_ids_to_noshow.length === 0) {
     logger.warn('cancel intent but no valid appointment ids → demoting to no_action', { parsed });
     return {
@@ -211,6 +260,6 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
 }
 
 module.exports = {
-  classify, isLastInboundBenign, parseClaudeJson,
+  classify, isLastInboundBenign, parseClaudeJson, isAudioMessage,
   formatMessagesForPrompt, formatAppointmentsForPrompt, validateAppointmentIds,
 };
