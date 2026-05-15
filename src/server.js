@@ -61,6 +61,7 @@ app.get('/health', (_req, res) => {
     requiresWebhookSecret: Boolean(process.env.WEBHOOK_SECRET),
     serverTokenConfigured: Boolean(process.env.GHL_API_TOKEN),
     anthropicKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
+    openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY),
     timestamp: new Date().toISOString(),
   });
 });
@@ -83,6 +84,7 @@ app.post('/webhook/ghl/cancel-intent', requireAuth, async (req, res) => {
       body: req.body || {},
       query: req.query || {},
       apiKey: process.env.ANTHROPIC_API_KEY,
+      openaiApiKey: process.env.OPENAI_API_KEY,
     });
     res.status(result.status).json(result.json);
   } catch (err) {

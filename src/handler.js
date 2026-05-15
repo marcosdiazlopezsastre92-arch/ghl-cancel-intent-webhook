@@ -28,22 +28,19 @@ async function setContactCustomFields({ authorization, contactId, fields }) {
 
   const shape1 = await updateContact({ authorization, contactId, body: { customFields: merged } });
   if (shape1.ok) return { ok: true, shape: 'customFields[id,value]', response: shape1.response };
-
   const shape2 = await updateContact({
     authorization, contactId,
     body: { customFields: merged.map((cf) => ({ id: cf.id, field_value: cf.value })) },
   });
   if (shape2.ok) return { ok: true, shape: 'customFields[id,field_value]', response: shape2.response };
-
   const map = {};
   for (const cf of merged) map[cf.id] = cf.value;
   const shape3 = await updateContact({ authorization, contactId, body: { customField: map } });
   if (shape3.ok) return { ok: true, shape: 'customField{id:value}', response: shape3.response };
-
   return { ok: false, stage: 'update-contact', errors: [shape1.errors, shape2.errors, shape3.errors] };
 }
 
-async function handleCancelIntent({ authorization, body, query, apiKey }) {
+async function handleCancelIntent({ authorization, body, query, apiKey, openaiApiKey }) {
   const warnings = [];
   const errors = [];
 
@@ -86,22 +83,28 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
   }
   const appointments = appRes.appointments || [];
 
-  const cls = await classify({ messages: msgsRes.messages, appointments, apiKey });
+  const cls = await classify({
+    messages: msgsRes.messages,
+    appointments,
+    apiKey,
+    openaiApiKey,
+    ghlAuthorization: authorization,
+  });
   if (!cls.ok) {
     return { status: 502, json: { ok: false, error: 'classification-failed', detail: cls } };
   }
   const decision = cls.decision;
-  logger.info('classification', { decision, bypass: cls.bypass });
+  logger.info('classification', { decision, bypass: cls.bypass, transcription: cls.transcriptionStats || null });
 
-  // ====== AUDIO BYPASS — do nothing, surface a clear warning. ======
   if (decision.intent === 'audio_needs_review') {
-    warnings.push('audio-detected: last inbound is a voice note. Skip until manual review or transcription is enabled.');
+    warnings.push('audio-detected: last inbound is a voice note and could not be transcribed.');
     return {
       status: 200,
       json: {
         ok: true, decision, bypass: cls.bypass, dryRun,
         foundActiveAppointments: appointments.length,
         actionsTaken: [],
+        transcription: cls.transcriptionStats || null,
         warnings,
       },
     };
@@ -113,6 +116,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
       json: {
         ok: true, decision, bypass: cls.bypass, dryRun,
         foundActiveAppointments: appointments.length,
+        transcription: cls.transcriptionStats || null,
         actionsTaken: [],
       },
     };
@@ -161,18 +165,14 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
 
   if (fieldsToSet.length > 0) {
     if (dryRun) {
-      for (const f of fieldsToSet) {
-        actionsTaken.push({ type: 'set-custom-field', dryRun: true, ...f });
-      }
+      for (const f of fieldsToSet) actionsTaken.push({ type: 'set-custom-field', dryRun: true, ...f });
     } else {
       const cfRes = await setContactCustomFields({
         authorization, contactId,
         fields: fieldsToSet.map((f) => ({ id: f.fieldId, value: f.value })),
       });
       if (cfRes.ok) {
-        for (const f of fieldsToSet) {
-          actionsTaken.push({ type: 'set-custom-field', shape: cfRes.shape, ...f });
-        }
+        for (const f of fieldsToSet) actionsTaken.push({ type: 'set-custom-field', shape: cfRes.shape, ...f });
       } else {
         errors.push({ type: 'set-custom-fields', error: 'all-shapes-failed', detail: cfRes });
       }
@@ -192,6 +192,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
         id: a.id, startTime: a.startTime || a.start_time, calendarId: a.calendarId,
       })),
       rejectedClaudeIds: cls.rejectedIds || [],
+      transcription: cls.transcriptionStats || null,
       actionsTaken, warnings, errors, dryRun,
     },
   };

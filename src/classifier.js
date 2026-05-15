@@ -7,6 +7,8 @@ const {
   DEFAULT_MESSAGES_LOOKBACK,
 } = require('./config');
 const logger = require('./logger');
+const { isAudioMessage } = require('./classifierAudio');
+const { transcribeAudiosInPlace } = require('./transcribe');
 
 const BENIGN_PHRASES = new Set([
   'vale', 'ok', 'okay', 'okey', 'oki', 'k', 'va', 'sip', 'si', 'sí', 'sii', 'siii',
@@ -27,31 +29,6 @@ function normalize(text) {
     .replace(/\s+/g, ' ');
 }
 
-// Detects voice/audio messages. GHL puts voice notes as attachments with
-// body="" so simple text checks miss them.
-function isAudioMessage(m) {
-  if (!m || typeof m !== 'object') return false;
-  const mt = String(m.messageType || m.message_type || '').toUpperCase();
-  if (mt.includes('VOICE') || mt.includes('AUDIO')) return true;
-  // GHL numeric type (legacy): some indicate voice/audio. Be conservative — only flag
-  // if type explicitly suggests audio.
-  const t = String(m.type || '').toUpperCase();
-  if (t.includes('VOICE') || t.includes('AUDIO')) return true;
-  // Check attachments for audio mime types or common audio extensions.
-  const atts = m.attachments;
-  if (Array.isArray(atts)) {
-    for (const a of atts) {
-      const mime = String(a?.mimetype || a?.mime || a?.contentType || a?.type || '').toLowerCase();
-      if (mime.startsWith('audio/')) return true;
-      const url = String(a?.url || a?.link || '').toLowerCase();
-      if (/\.(ogg|oga|mp3|m4a|wav|aac|opus|flac|webm)(\?|$)/.test(url)) return true;
-    }
-  } else if (typeof atts === 'string') {
-    if (/\.(ogg|oga|mp3|m4a|wav|aac|opus|flac|webm)/.test(atts.toLowerCase())) return true;
-  }
-  return false;
-}
-
 function lastInboundMessage(messages) {
   const inbound = (messages || []).filter((m) => (m.direction || '').toLowerCase() === 'inbound');
   return inbound.length ? inbound[inbound.length - 1] : null;
@@ -60,10 +37,9 @@ function lastInboundMessage(messages) {
 function isLastInboundBenign(messages) {
   const last = lastInboundMessage(messages);
   if (!last) return false;
-  // Audio is NOT benign — we cannot read the content. Caller will route it elsewhere.
-  if (isAudioMessage(last)) return false;
+  if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
   const norm = normalize(last.body || last.message || last.text || '');
-  if (!norm) return true; // truly empty (sticker, image-only, etc.)
+  if (!norm) return true;
   const words = norm.split(' ');
   if (words.length > 4) return false;
   return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
@@ -100,7 +76,9 @@ function formatAppointmentsForPrompt(appointments) {
 const SYSTEM_PROMPT = `Eres un clasificador de intención de cancelación de llamadas para una agencia de coaching de fitness en España.
 Lees una conversación de WhatsApp/SMS entre el coach y un lead, junto con la lista de
 llamadas futuras activas que tiene ese lead. Decides si en su ÚLTIMO mensaje está pidiendo
-cancelar/reagendar alguna(s) o ninguna llamada.
+cancelar/reagendar alguna(s) o ninguna llamada. Algunos mensajes pueden venir prefijados
+como [AUDIO TRANSCRITO] — son notas de voz transcritas automáticamente con Whisper, trátalas
+igual que cualquier otro mensaje de texto.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta. NO TOCAR NADA.
@@ -157,15 +135,26 @@ function validateAppointmentIds(claudeIds, activeAppointments) {
   return { accepted, rejected };
 }
 
-async function classify({ messages, appointments, apiKey, model, threshold }) {
-  // 0) AUDIO short-circuit — if the last inbound is a voice note we cannot
-  //    read its content. Skip Claude and emit a special intent so the operator
-  //    can review it manually in GHL. Avoids false positives & negatives.
+async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAuthorization, model, threshold }) {
+  // 0a) Try to transcribe inbound audios in-place if Whisper is available.
+  let transcriptionStats = null;
+  if (openaiApiKey) {
+    try {
+      transcriptionStats = await transcribeAudiosInPlace({
+        messages, openaiApiKey, ghlAuthorization,
+      });
+      logger.info('whisper transcription pass', transcriptionStats);
+    } catch (err) {
+      logger.warn('whisper transcription threw', { error: err.message });
+    }
+  }
+
+  // 0b) AUDIO bypass — only if last inbound is still untranscribed audio.
   const last = lastInboundMessage(messages);
-  if (last && isAudioMessage(last)) {
-    logger.info('audio detected on last inbound → skipping classification', {
+  if (last && isAudioMessage(last) && !String(last.body || '').trim()) {
+    logger.info('audio detected on last inbound (untranscribed) → skipping classification', {
       messageId: last.id || last._id || null,
-      attachments: Array.isArray(last.attachments) ? last.attachments.length : 0,
+      transcription: transcriptionStats,
     });
     return {
       ok: true,
@@ -175,8 +164,11 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
         confidence: 1.0,
         appointment_ids_to_noshow: [],
         followup_delay_days: null,
-        reasoning: 'Last inbound is a voice/audio note — cannot be transcribed by this version. Manual review needed.',
+        reasoning: openaiApiKey
+          ? 'Last inbound is a voice note and Whisper transcription failed.'
+          : 'Last inbound is a voice note. Configure OPENAI_API_KEY to auto-transcribe.',
       },
+      transcriptionStats,
     };
   }
 
@@ -187,6 +179,7 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
       bypass: 'no-appointments',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Contact has no active future appointments' },
+      transcriptionStats,
     };
   }
 
@@ -197,6 +190,7 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
       bypass: 'whitelist',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
+      transcriptionStats,
     };
   }
 
@@ -216,12 +210,12 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
     system: SYSTEM_PROMPT,
     userMessage,
   });
-  if (!claudeRes.ok) return { ok: false, error: 'claude-call-failed', detail: claudeRes };
+  if (!claudeRes.ok) return { ok: false, error: 'claude-call-failed', detail: claudeRes, transcriptionStats };
 
   const parsed = parseClaudeJson(claudeRes.text);
   if (!parsed || !parsed.intent) {
     logger.warn('claude unparseable output', { text: (claudeRes.text || '').slice(0, 500) });
-    return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text };
+    return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text, transcriptionStats };
   }
 
   const { accepted, rejected } = validateAppointmentIds(parsed.appointment_ids_to_noshow, appointments);
@@ -241,6 +235,7 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
                   followup_delay_days: null,
                   reasoning: `Below threshold (${conf} < ${thr}). Original: ${parsed.reasoning || ''}` },
       claudeRaw: parsed,
+      transcriptionStats,
     };
   }
 
@@ -253,10 +248,11 @@ async function classify({ messages, appointments, apiKey, model, threshold }) {
                   followup_delay_days: null,
                   reasoning: `Claude said ${parsed.intent} but listed no valid IDs. Original: ${parsed.reasoning || ''}` },
       claudeRaw: parsed,
+      transcriptionStats,
     };
   }
 
-  return { ok: true, decision: parsed, rejectedIds: rejected };
+  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats };
 }
 
 module.exports = {
