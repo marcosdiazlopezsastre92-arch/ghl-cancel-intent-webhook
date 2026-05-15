@@ -10,7 +10,6 @@ const APT_1 = { id: 'evt_FUTURE_001', startTime: new Date(Date.now() + 24 * 60 *
 const APT_2 = { id: 'evt_FUTURE_002', startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), calendarName: 'Reagendar llamada' };
 
 module.exports = [
-  // ============ GROUP 1: Direct cancellations (no link) ============
   { name: 'G1-direct-cancel',
     messages: [
       { direction: 'outbound', body: 'Tienes tu llamada agendada para mañana', dateAdded: mkTs(20) },
@@ -44,7 +43,18 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'cancel_no_followup',
   },
 
-  // ============ GROUP 2: Benign / no_action (no link) ============
+  // ===== NEW: real-world medical case (Marcos's example) =====
+  { name: 'G1-real-medical-renal-colic',
+    messages: [
+      { direction: 'inbound',  body: 'Hola buenas tardes!! He tenido cólico nefriticos! Y mañana voy al hospital. Una amiga uróloga me va a hacer unas pruebas', dateAdded: mkTs(8) },
+      { direction: 'inbound',  body: 'Perdona por la hora', dateAdded: mkTs(7) },
+      { direction: 'inbound',  body: 'Lo dejamos para otro di por favor? Gracias', dateAdded: mkTs(6) },
+    ],
+    appointments: [APT_1],
+    expectedIntent: 'cancel_with_followup',
+    // delay could reasonably be 3 OR 7 — both acceptable. Don't assert delay value.
+  },
+
   { name: 'G2-confirmation-short',
     messages: [
       { direction: 'outbound', body: 'Recuerda que mañana a las 18h tenemos la llamada', dateAdded: mkTs(20) },
@@ -72,7 +82,6 @@ module.exports = [
     appointments: [], expectedIntent: 'no_action',
   },
 
-  // ============ GROUP 3: Reschedule link scenarios ============
   { name: 'G3-link-accept-thanks',
     messages: [
       { direction: 'inbound',  body: 'Marcos no sé si podré asistir hoy', dateAdded: mkTs(15) },
@@ -130,7 +139,6 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'no_action',
   },
 
-  // ============ NEW: clear cancel BEFORE link ============
   { name: 'G3-clear-cancel-then-link-silence',
     messages: [
       { direction: 'inbound',  body: 'Marcos no podré asistir a la llamada', dateAdded: mkTs(10) },
@@ -147,16 +155,12 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'no_action',
   },
 
-  // ============ NEW: ambiguous-then-clear-accept scenarios (Marcos's question) ============
   { name: 'G3-no-se-then-link-silence',
     messages: [
       { direction: 'inbound',  body: 'no sé si podré asistir', dateAdded: mkTs(10) },
       { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(8) },
     ],
-    appointments: [APT_1],
-    // Genuinely uncertain — lead never confirmed cancel nor confirmed attendance.
-    // Conservative choice: no_action. We'll see what Claude says.
-    expectedIntent: 'no_action',
+    appointments: [APT_1], expectedIntent: 'no_action',
   },
   { name: 'G3-no-se-then-link-then-reagendo',
     messages: [
@@ -164,11 +168,9 @@ module.exports = [
       { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(12) },
       { direction: 'inbound',  body: 'vale cuando pueda reagendo', dateAdded: mkTs(2) },
     ],
-    appointments: [APT_1],
-    expectedIntent: 'cancel_with_followup', // clear acceptance of rescheduling
+    appointments: [APT_1], expectedIntent: 'cancel_with_followup',
   },
 
-  // ============ GROUP 4: Partial cancellations ============
   { name: 'G4-cancel-both',
     messages: [
       { direction: 'inbound', body: 'Marcos no puedo ir a las llamadas que tengo agendadas, cancela las dos por favor', dateAdded: mkTs(2) },
@@ -189,7 +191,6 @@ module.exports = [
     appointments: [APT_1, APT_2], expectedIntent: 'cancel_with_followup', expectedIdsCount: 2,
   },
 
-  // ============ GROUP 5: Edge cases ============
   { name: 'G5-just-vale-alone-no-link',
     messages: [
       { direction: 'outbound', body: 'Te paso el material que te prometí', dateAdded: mkTs(10) },
