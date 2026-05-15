@@ -8,8 +8,6 @@ const {
 } = require('./config');
 const logger = require('./logger');
 
-// Whitelist: si el ÚLTIMO mensaje inbound se reduce a una de estas frases
-// (después de normalizar), saltamos Claude y devolvemos no_action.
 const BENIGN_PHRASES = new Set([
   'vale', 'ok', 'okay', 'okey', 'oki', 'k', 'va', 'sip', 'si', 'sí', 'sii', 'siii',
   'genial', 'perfecto', 'perfectamente', 'perfect', 'great',
@@ -29,15 +27,12 @@ function normalize(text) {
     .replace(/\s+/g, ' ');
 }
 
-// Determina si la última entrada del lead es claramente benigna.
 function isLastInboundBenign(messages) {
-  // messages ordenados de más antiguo a más reciente.
   const inbound = messages.filter((m) => (m.direction || '').toLowerCase() === 'inbound');
   if (inbound.length === 0) return false;
   const last = inbound[inbound.length - 1];
   const norm = normalize(last.body || last.message || last.text || '');
-  if (!norm) return true; // empty inbound (sticker, attachment-only) -> benign
-  // Si tiene <= 2 palabras y está en la whitelist, benigno.
+  if (!norm) return true;
   const words = norm.split(' ');
   if (words.length > 4) return false;
   return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
@@ -59,37 +54,58 @@ function formatMessagesForPrompt(messages, lookback) {
   }).join('\n');
 }
 
-const SYSTEM_PROMPT = `Eres un clasificador de intención de cancelación para una agencia de coaching de fitness en España.
-Tu trabajo es leer una conversación de WhatsApp/SMS entre el coach y un lead que tiene una llamada de venta
-agendada. Decides si en su ÚLTIMO mensaje el lead está pidiendo cancelar/reagendar la llamada, o si es
-conversación normal.
+function formatAppointmentsForPrompt(appointments) {
+  if (!appointments || appointments.length === 0) {
+    return '(El contacto no tiene citas futuras activas. Esto es raro — probablemente no_action.)';
+  }
+  return appointments.map((a, i) => {
+    const start = a.startTime || a.start_time || '?';
+    const cal = a.calendarName || a.calendarId || '?';
+    return `${i + 1}. id=${a.id} | inicio=${start} | calendario=${cal}`;
+  }).join('\n');
+}
 
-REGLAS ESTRICTAS:
-- Mejor "no_action" si tienes la más mínima duda. Solo activas cancelación si la persona claramente la pide.
-- Confirmaciones cortas como "vale", "ok", "genial", "perfecto", "listo", "nos vemos", "gracias" → SIEMPRE no_action.
-- Frases que indican cancelación suave/reagendar: "no puedo ir", "se me complica", "tengo que mover la llamada",
-  "esta semana imposible", "no voy a poder asistir" → cancel_with_followup.
-- Cancelación dura: "ya no me interesa", "voy con otro entrenador", "no sigamos", "quítame", "borra mis datos" → cancel_no_followup.
-- Para el delay del seguimiento automático (si cancel_with_followup):
-  * 1 día (default): cancelación sin contexto especial ("hostia, no puedo el martes")
-  * 3 días: malestar puntual / problema corto ("tengo dolor de cabeza", "estoy malo")
-  * 7 días: enfermedad más seria, viaje toda la semana, agenda muy cargada ("esta semana fatal", "de viaje")
+const SYSTEM_PROMPT = `Eres un clasificador de intención de cancelación de llamadas para una agencia de coaching de fitness en España.
+Lees una conversación de WhatsApp/SMS entre el coach y un lead, junto con la lista de
+llamadas futuras activas que tiene ese lead. Decides si en su ÚLTIMO mensaje está pidiendo
+cancelar/reagendar alguna(s) o ninguna llamada.
 
-Devuelve EXCLUSIVAMENTE un objeto JSON válido (sin markdown, sin texto adicional) con este schema:
+INTENTS POSIBLES:
+- "no_action": conversación normal, confirmación, pregunta. NO TOCAR NADA.
+- "cancel_with_followup": el lead pide cancelar TODAS sus llamadas futuras y se le debe poner
+  en seguimiento automático para que la IA reagende.
+- "cancel_no_followup": cancelación DURA ("ya no me interesa", "voy con otro entrenador",
+  "borra mis datos"). Cancela TODAS las llamadas y NO seguimiento.
+- "cancel_partial": el lead pide cancelar SOLO ALGUNAS llamadas concretas, no todas.
+  No se pone en seguimiento porque aún tiene otras llamadas pendientes.
+
+REGLAS:
+- Mejor "no_action" si tienes la más mínima duda.
+- Confirmaciones cortas ("vale", "ok", "genial", "perfecto", "listo") → SIEMPRE no_action.
+- "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista que te paso. Si el lead
+  no especifica cuál, asume TODAS (cancel_with_followup o cancel_no_followup).
+- Si solo hay 1 cita y dice "cancelélalo" sin especificar → cancel_with_followup con esa cita.
+- Si hay 2+ citas y dice "cancel ambas" o no especifica → cancel_with_followup con TODAS.
+- Si hay 2+ y dice "cancel solo la del martes" → cancel_partial con SOLO esa.
+- Para el delay del seguimiento (cancel_with_followup):
+  * 1 día (default): cancelación sin contexto especial
+  * 3 días: malestar puntual ("dolor de cabeza", "estoy malo")
+  * 7 días: enfermedad seria, viaje, agenda muy cargada ("esta semana fatal", "de viaje")
+
+Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional):
 {
-  "intent": "no_action" | "cancel_with_followup" | "cancel_no_followup",
+  "intent": "no_action" | "cancel_with_followup" | "cancel_no_followup" | "cancel_partial",
   "confidence": 0.0-1.0,
+  "appointment_ids_to_noshow": ["id1", "id2"],
   "followup_delay_days": 1 | 3 | 7 | null,
   "reasoning": "breve explicación en una frase"
 }`;
 
 function parseClaudeJson(text) {
   if (!text) return null;
-  // Strip markdown fences if present.
   let s = String(text).trim();
   const fenceMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) s = fenceMatch[1].trim();
-  // Find first { and last } to be tolerant.
   const first = s.indexOf('{');
   const last = s.lastIndexOf('}');
   if (first < 0 || last < 0 || last <= first) return null;
@@ -97,40 +113,73 @@ function parseClaudeJson(text) {
   try { return JSON.parse(candidate); } catch { return null; }
 }
 
-async function classify({ messages, apiKey, model, threshold }) {
-  // 1) Whitelist short-circuit.
+// Validates and sanitizes the IDs Claude returned: only keeps ones that match
+// the active appointments list. Prevents Claude from hallucinating IDs.
+function validateAppointmentIds(claudeIds, activeAppointments) {
+  const validIds = new Set(activeAppointments.map((a) => String(a.id)));
+  const arr = Array.isArray(claudeIds) ? claudeIds : [];
+  const accepted = [];
+  const rejected = [];
+  for (const id of arr) {
+    if (validIds.has(String(id))) accepted.push(String(id));
+    else rejected.push(String(id));
+  }
+  return { accepted, rejected };
+}
+
+async function classify({ messages, appointments, apiKey, model, threshold }) {
+  // 1) If no active appointments, no point in classifying — skip Claude.
+  if (!appointments || appointments.length === 0) {
+    return {
+      ok: true,
+      bypass: 'no-appointments',
+      decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
+                  followup_delay_days: null, reasoning: 'Contact has no active future appointments' },
+    };
+  }
+
+  // 2) Whitelist short-circuit.
   if (isLastInboundBenign(messages)) {
     return {
       ok: true,
       bypass: 'whitelist',
-      decision: { intent: 'no_action', confidence: 1.0, followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
+      decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
+                  followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
     };
   }
 
-  // 2) Build prompt.
+  // 3) Build prompt.
   const lookback = DEFAULT_MESSAGES_LOOKBACK;
   const transcript = formatMessagesForPrompt(messages, lookback);
-  const userMessage = `CONVERSACIÓN (de más antiguo a más reciente):\n\n${transcript}\n\nDevuelve sólo el JSON.`;
+  const aptsBlock = formatAppointmentsForPrompt(appointments);
+  const userMessage =
+    `LLAMADAS FUTURAS ACTIVAS DEL LEAD:\n${aptsBlock}\n\n` +
+    `CONVERSACIÓN (de más antiguo a más reciente):\n\n${transcript}\n\n` +
+    `Devuelve sólo el JSON especificado, con appointment_ids_to_noshow como subconjunto de los ids listados arriba.`;
 
-  // 3) Call Claude.
+  // 4) Call Claude.
   const claudeRes = await callClaude({
     apiKey,
     model: model || DEFAULT_CLAUDE_MODEL,
     system: SYSTEM_PROMPT,
     userMessage,
   });
-  if (!claudeRes.ok) {
-    return { ok: false, error: 'claude-call-failed', detail: claudeRes };
-  }
+  if (!claudeRes.ok) return { ok: false, error: 'claude-call-failed', detail: claudeRes };
 
-  // 4) Parse JSON output.
   const parsed = parseClaudeJson(claudeRes.text);
   if (!parsed || !parsed.intent) {
-    logger.warn('claude returned unparseable output', { text: (claudeRes.text || '').slice(0, 500) });
+    logger.warn('claude unparseable output', { text: (claudeRes.text || '').slice(0, 500) });
     return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text };
   }
 
-  // 5) Threshold check — demote to no_action if below.
+  // 5) Validate appointment IDs against the actual list.
+  const { accepted, rejected } = validateAppointmentIds(parsed.appointment_ids_to_noshow, appointments);
+  parsed.appointment_ids_to_noshow = accepted;
+  if (rejected.length > 0) {
+    logger.warn('claude returned invalid appointment ids — rejected', { rejected });
+  }
+
+  // 6) Threshold check.
   const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
   const thr = threshold ?? DEFAULT_CONFIDENCE_THRESHOLD;
   if (parsed.intent !== 'no_action' && conf < thr) {
@@ -138,13 +187,30 @@ async function classify({ messages, apiKey, model, threshold }) {
     return {
       ok: true,
       bypass: 'low-confidence',
-      decision: { intent: 'no_action', confidence: conf, followup_delay_days: null,
+      decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
+                  followup_delay_days: null,
                   reasoning: `Below threshold (${conf} < ${thr}). Original: ${parsed.reasoning || ''}` },
       claudeRaw: parsed,
     };
   }
 
-  return { ok: true, decision: parsed };
+  // 7) Sanity: if intent is cancel_* but no IDs survived validation, demote to no_action.
+  if (parsed.intent !== 'no_action' && parsed.appointment_ids_to_noshow.length === 0) {
+    logger.warn('cancel intent but no valid appointment ids → demoting to no_action', { parsed });
+    return {
+      ok: true,
+      bypass: 'no-valid-ids',
+      decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
+                  followup_delay_days: null,
+                  reasoning: `Claude said ${parsed.intent} but listed no valid IDs. Original: ${parsed.reasoning || ''}` },
+      claudeRaw: parsed,
+    };
+  }
+
+  return { ok: true, decision: parsed, rejectedIds: rejected };
 }
 
-module.exports = { classify, isLastInboundBenign, parseClaudeJson, formatMessagesForPrompt };
+module.exports = {
+  classify, isLastInboundBenign, parseClaudeJson,
+  formatMessagesForPrompt, formatAppointmentsForPrompt, validateAppointmentIds,
+};
