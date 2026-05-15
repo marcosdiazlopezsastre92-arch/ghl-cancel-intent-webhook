@@ -1,6 +1,6 @@
 'use strict';
 
-const { LOCATION_ID, CUSTOM_FIELDS, CANCELLATION_NOTICE_TAG } = require('./config');
+const { LOCATION_ID, CUSTOM_FIELDS, CANCELLATION_NOTICE_TAG, SCRIPT_APPLIED_TAG } = require('./config');
 const { parsePayload } = require('./payload');
 const { classify } = require('./classifier');
 const {
@@ -138,7 +138,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     }
   }
 
-  // 2) Decide custom fields.
+  // 2) Custom fields.
   const fieldsToSet = [];
   if (decision.intent === 'cancel_with_followup') {
     const optionLabel = mapDelayToOption(decision.followup_delay_days || 1);
@@ -176,29 +176,32 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     }
   }
 
-  // 3) Add the "inv x cancelación avisada" tag for FULL cancellations only.
-  // NOT for cancel_partial (lead still has other active calls).
-  const shouldAddCancelTag =
-    (decision.intent === 'cancel_with_followup' || decision.intent === 'cancel_no_followup')
-    && targets.length > 0; // safety: only if we actually noshow'd something
+  // 3) Tags.
+  // For full cancels (cancel_with_followup or cancel_no_followup) AND when we
+  // actually noshow'd at least one call: add BOTH tags in a single API call.
+  //   - "inv x cancelación avisada"  (swap-rate metric)
+  //   - "script cancel-intent aplicado"  (monitoring filter for Marcos)
+  // cancel_partial gets NO tags (lead still has other active calls).
+  const isFullCancel = (decision.intent === 'cancel_with_followup'
+                     || decision.intent === 'cancel_no_followup');
+  const shouldAddTags = isFullCancel && targets.length > 0;
 
-  if (shouldAddCancelTag) {
+  if (shouldAddTags) {
+    const tagsToAdd = [CANCELLATION_NOTICE_TAG.name, SCRIPT_APPLIED_TAG.name];
     if (dryRun) {
-      actionsTaken.push({
-        type: 'add-tag', tag: CANCELLATION_NOTICE_TAG.name,
-        tagId: CANCELLATION_NOTICE_TAG.id, dryRun: true,
-      });
+      for (const t of tagsToAdd) {
+        actionsTaken.push({ type: 'add-tag', tag: t, dryRun: true });
+      }
     } else {
       const tagRes = await addContactTags({
-        authorization, contactId, tags: [CANCELLATION_NOTICE_TAG.name],
+        authorization, contactId, tags: tagsToAdd,
       });
       if (tagRes.ok) {
-        actionsTaken.push({
-          type: 'add-tag', tag: CANCELLATION_NOTICE_TAG.name,
-          tagId: CANCELLATION_NOTICE_TAG.id, shape: Object.keys(tagRes.body || {}).join(','),
-        });
+        for (const t of tagsToAdd) {
+          actionsTaken.push({ type: 'add-tag', tag: t, shape: Object.keys(tagRes.body || {}).join(',') });
+        }
       } else {
-        errors.push({ type: 'add-tag', error: 'all-shapes-failed' });
+        errors.push({ type: 'add-tags', error: 'all-shapes-failed', tags: tagsToAdd });
       }
     }
   }

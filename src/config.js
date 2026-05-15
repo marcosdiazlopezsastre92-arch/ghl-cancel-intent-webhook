@@ -17,12 +17,18 @@ const CUSTOM_FIELDS = {
   },
 };
 
-// Existing location-level tag (do NOT create a new one).
-// Found via GHL find_location_tag tool. id is informational — GHL accepts
-// adding by tag NAME via POST /contacts/{id}/tags.
+// Existing tag for the swap-rate metric: lead que avisó la cancelación.
+// Added on full cancels (cancel_with_followup, cancel_no_followup).
 const CANCELLATION_NOTICE_TAG = {
   id: 'e6goR8TWrPCWbtTOAwZn',
   name: 'inv x cancelación avisada',
+};
+
+// Monitoring tag created via the ghl-ext MCP. Added on full cancels so Marcos
+// can filter in GHL all contacts the script touched.
+const SCRIPT_APPLIED_TAG = {
+  id: '3NdZ9R2hvIBgADWgGTgV',
+  name: 'script cancel-intent aplicado',
 };
 
 const CANCELLED_STATUSES = new Set(['cancelled', 'canceled', 'noshow', 'no_show']);
@@ -32,14 +38,9 @@ const DEFAULT_CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251
 const DEFAULT_MESSAGES_LOOKBACK = parseInt(process.env.MESSAGES_LOOKBACK || '15', 10);
 
 module.exports = {
-  LOCATION_ID,
-  GHL_API_BASE,
-  GHL_API_VERSIONS,
-  FUTURE_WINDOW_DAYS,
+  LOCATION_ID, GHL_API_BASE, GHL_API_VERSIONS, FUTURE_WINDOW_DAYS,
   CUSTOM_FIELDS,
-  CANCELLATION_NOTICE_TAG,
+  CANCELLATION_NOTICE_TAG, SCRIPT_APPLIED_TAG,
   CANCELLED_STATUSES,
-  DEFAULT_CONFIDENCE_THRESHOLD,
-  DEFAULT_CLAUDE_MODEL,
-  DEFAULT_MESSAGES_LOOKBACK,
+  DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_CLAUDE_MODEL, DEFAULT_MESSAGES_LOOKBACK,
 };
