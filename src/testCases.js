@@ -1,13 +1,5 @@
 'use strict';
 
-// Synthetic test cases for the classifier. Each case has:
-//   - name: short label
-//   - messages: synthetic conversation, ordered oldest -> newest
-//   - appointments: synthetic active future appointments (id + startTime)
-//   - expectedIntent: what we want the classifier to decide
-//   - expectedDelay (optional): for cancel_with_followup, expected delay days
-//
-// Helper: synthetic timestamps relative to NOW.
 function mkTs(minsAgo) {
   return new Date(Date.now() - minsAgo * 60 * 1000).toISOString();
 }
@@ -98,7 +90,7 @@ module.exports = [
       { direction: 'inbound', body: 'Hola q tal', dateAdded: mkTs(1) },
     ],
     appointments: [],
-    expectedIntent: 'no_action', // no appointments → no_action by-pass
+    expectedIntent: 'no_action',
   },
 
   // ============ GROUP 3: Reschedule link scenarios (the critical ones) ============
@@ -130,7 +122,7 @@ module.exports = [
       { direction: 'inbound',  body: 'vale sí puedo asistir', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // MARCOS’S CRITICAL CASE
+    expectedIntent: 'no_action',
   },
   {
     name: 'G3-link-REJECT-al-final-voy',
@@ -160,7 +152,7 @@ module.exports = [
       { direction: 'inbound',  body: 'vale', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // ambiguous → conservative
+    expectedIntent: 'no_action',
   },
   {
     name: 'G3-link-ambiguous-pensar',
@@ -171,6 +163,28 @@ module.exports = [
     ],
     appointments: [APT_1],
     expectedIntent: 'no_action',
+  },
+
+  // ============ NEW: clear cancel BEFORE link, silence after ============
+  {
+    name: 'G3-clear-cancel-then-link-silence',
+    messages: [
+      { direction: 'inbound',  body: 'Marcos no podré asistir a la llamada', dateAdded: mkTs(10) },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(8) },
+    ],
+    appointments: [APT_1],
+    expectedIntent: 'cancel_with_followup', // lead's clear cancel should stand
+    expectedDelay: 1,
+  },
+  {
+    name: 'G3-clear-cancel-then-link-then-yes-i-go',
+    messages: [
+      { direction: 'inbound',  body: 'Marcos no podré asistir a la llamada', dateAdded: mkTs(15) },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(12) },
+      { direction: 'inbound',  body: 'al final sí voy, perdón', dateAdded: mkTs(2) },
+    ],
+    appointments: [APT_1],
+    expectedIntent: 'no_action', // lead retracted; elevated threshold should NOT block this either
   },
 
   // ============ GROUP 4: Partial cancellations (2+ appointments) ============
@@ -199,7 +213,7 @@ module.exports = [
       { direction: 'inbound', body: 'al final no voy a poder, cancela la llamada', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1, APT_2],
-    expectedIntent: 'cancel_with_followup', // unspecified -> all
+    expectedIntent: 'cancel_with_followup',
     expectedIdsCount: 2,
   },
 
@@ -211,7 +225,7 @@ module.exports = [
       { direction: 'inbound',  body: 'vale', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // whitelist short-circuit
+    expectedIntent: 'no_action',
   },
   {
     name: 'G5-audio-untranscribable',
@@ -227,6 +241,6 @@ module.exports = [
       { direction: 'inbound', body: '', attachments: ['https://example.com/photo.jpg'], dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // non-audio-media bypass
+    expectedIntent: 'no_action',
   },
 ];

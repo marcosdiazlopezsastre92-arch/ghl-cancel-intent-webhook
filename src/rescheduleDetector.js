@@ -1,11 +1,7 @@
 'use strict';
 
-// URLs that the GHL AI sends when offering the lead a way to reagendar.
-// Detect any of these in Coach messages — it's a strong signal that the
-// conversation has shifted into a rescheduling flow.
 const RESCHEDULE_URL_PATTERNS = [
   /api\.leadconnectorhq\.com\/widget\/bookings\/round-normal/i,
-  // Add more here if Marcos discovers other reagendar URLs.
 ];
 
 function messageContainsRescheduleLink(m) {
@@ -14,7 +10,6 @@ function messageContainsRescheduleLink(m) {
   for (const re of RESCHEDULE_URL_PATTERNS) {
     if (re.test(body)) return true;
   }
-  // Some Coach messages put the link as an attachment string.
   const atts = m.attachments;
   if (Array.isArray(atts)) {
     for (const a of atts) {
@@ -27,15 +22,13 @@ function messageContainsRescheduleLink(m) {
   return false;
 }
 
-// Returns true if any OUTBOUND (Coach) message in the recent window has
-// sent the reschedule link.
+function tsOf(m) {
+  return new Date(m?.dateAdded || m?.dateCreated || m?.createdAt || 0).getTime() || 0;
+}
+
 function hasRecentRescheduleLink(messages, lookback = 15) {
   if (!Array.isArray(messages) || messages.length === 0) return false;
-  const sorted = [...messages].sort((a, b) => {
-    const ta = new Date(a.dateAdded || a.dateCreated || a.createdAt || 0).getTime();
-    const tb = new Date(b.dateAdded || b.dateCreated || b.createdAt || 0).getTime();
-    return ta - tb;
-  });
+  const sorted = [...messages].sort((a, b) => tsOf(a) - tsOf(b));
   const recent = sorted.slice(-lookback);
   for (const m of recent) {
     const dir = (m.direction || '').toLowerCase();
@@ -45,8 +38,38 @@ function hasRecentRescheduleLink(messages, lookback = 15) {
   return false;
 }
 
+// True only when the last inbound message happened AFTER the most recent
+// outbound message that contained a reschedule link. This is the genuinely
+// ambiguous case (lead replied to the link). When the lead spoke first and
+// the AI sent the link as a response, this returns false — the lead's
+// original intent should still count with normal confidence.
+function isLeadReplyAfterRescheduleLink(messages, lookback = 15) {
+  if (!Array.isArray(messages) || messages.length === 0) return false;
+  const sorted = [...messages].sort((a, b) => tsOf(a) - tsOf(b));
+  const recent = sorted.slice(-lookback);
+
+  let lastLinkTs = 0;
+  for (const m of recent) {
+    if ((m.direction || '').toLowerCase() !== 'outbound') continue;
+    if (messageContainsRescheduleLink(m)) {
+      const t = tsOf(m);
+      if (t > lastLinkTs) lastLinkTs = t;
+    }
+  }
+  if (lastLinkTs === 0) return false;
+
+  let lastInboundTs = 0;
+  for (const m of recent) {
+    if ((m.direction || '').toLowerCase() !== 'inbound') continue;
+    const t = tsOf(m);
+    if (t > lastInboundTs) lastInboundTs = t;
+  }
+  return lastInboundTs > lastLinkTs;
+}
+
 module.exports = {
   RESCHEDULE_URL_PATTERNS,
   messageContainsRescheduleLink,
   hasRecentRescheduleLink,
+  isLeadReplyAfterRescheduleLink,
 };

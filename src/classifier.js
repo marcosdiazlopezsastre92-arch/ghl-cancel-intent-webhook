@@ -9,11 +9,14 @@ const {
 const logger = require('./logger');
 const { isAudioMessage, isNonAudioMediaOnly, classifyAttachments } = require('./classifierAudio');
 const { transcribeAudiosInPlace } = require('./transcribe');
-const { messageContainsRescheduleLink, hasRecentRescheduleLink } = require('./rescheduleDetector');
+const {
+  messageContainsRescheduleLink,
+  hasRecentRescheduleLink,
+  isLeadReplyAfterRescheduleLink,
+} = require('./rescheduleDetector');
 
-// When a reschedule link was recently sent the prompt is more ambiguous; we
-// require higher confidence before acting, to reduce false positives.
-const RESCHEDULE_CONTEXT_THRESHOLD = 0.90;
+// Elevated threshold ONLY when the lead's reply came AFTER the link (ambiguous).
+const POST_LINK_AMBIGUOUS_THRESHOLD = 0.90;
 
 const BENIGN_PHRASES = new Set([
   'vale', 'ok', 'okay', 'okey', 'oki', 'k', 'va', 'sip', 'si', 'sí', 'sii', 'siii',
@@ -44,7 +47,8 @@ function isLastInboundBenign(messages) {
   if (!last) return false;
   if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
   if (isNonAudioMediaOnly(last) && !String(last.body || '').trim()) return false;
-  if (hasRecentRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK)) return false;
+  // If the lead replied AFTER a reschedule link, never whitelist — even "vale".
+  if (isLeadReplyAfterRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK)) return false;
   const norm = normalize(last.body || last.message || last.text || '');
   if (!norm) return true;
   const words = norm.split(' ');
@@ -101,8 +105,11 @@ REGLAS ESPECIALES CUANDO HAY [ENVIÓ ENLACE DE REAGENDAR] en el historial recien
 - Si el lead RECHAZÓ explícitamente el reagendado o confirmó que IGUAL SÍ VA a la llamada
   ("no, mejor lo dejo", "déjalo, sí voy", "olvídalo, iré", "al final sí puedo", "sí voy")
   → no_action.
-- Si el lead respondió ambiguamente o no respondió ("déjame pensarlo", "luego te digo",
-  "vale" sin más, silencio total) → no_action (conservador).
+- Si el lead respondió ambiguamente o no respondió después del link ("déjame pensarlo",
+  "luego te digo", "vale" sin más, silencio total) → no_action (conservador).
+- Si el lead YA había cancelado claramente ANTES de que el AI enviara el link (ej: lead dice
+  "no podré asistir" → AI manda link → sin respuesta del lead) → cancel_with_followup (la
+  cancelación del lead sigue vigente, el link no la anula).
 
 EJEMPLOS CRÍTICOS POST-ENLACE (lee el mensaje COMPLETO del lead, no solo la primera palabra):
   Lead: "no sé si podré asistir"
@@ -116,8 +123,14 @@ EJEMPLOS CRÍTICOS POST-ENLACE (lee el mensaje COMPLETO del lead, no solo la pri
   Lead: "déjame pensarlo"          → no_action (ambiguo)
   Lead: "lo miro luego"            → no_action (ambiguo)
 
-IMPORTANTE: cualquier afirmación de que el lead VA a asistir ("sí puedo", "al final voy", "déjalo",
-"olvídalo", "iré", "sí voy") SIEMPRE gana sobre un "vale" inicial. NO cancelar la llamada en estos casos.
+EJEMPLO con cancelación CLARA antes del link:
+  Lead: "Marcos no podré asistir a la llamada"
+  Coach [ENVIÓ ENLACE DE REAGENDAR]: "vale, aquí tienes el enlace"
+  (sin respuesta posterior del lead) → cancel_with_followup (lead ya canceló claramente)
+
+IMPORTANTE: cualquier afirmación del lead POSTERIOR al link de que VA a asistir ("sí puedo",
+"al final voy", "déjalo", "olvídalo", "iré", "sí voy") SIEMPRE gana sobre un "vale" inicial.
+NO cancelar la llamada en estos casos.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, o lead reafirmó asistencia. NO TOCAR NADA.
@@ -191,8 +204,9 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
 
   const last = lastInboundMessage(messages);
   const rescheduleLinkSent = hasRecentRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK);
+  const leadAfterLink = isLeadReplyAfterRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK);
   if (rescheduleLinkSent) {
-    logger.info('reschedule link detected in recent context — higher threshold applies');
+    logger.info('reschedule link context', { rescheduleLinkSent, leadAfterLink });
   }
 
   if (last && isNonAudioMediaOnly(last) && !String(last.body || '').trim()) {
@@ -207,7 +221,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
         appointment_ids_to_noshow: [], followup_delay_days: null,
         reasoning: 'Last inbound is media (image/document) with no text — nothing to classify.',
       },
-      transcriptionStats, attachmentBreakdown: cls, rescheduleLinkSent,
+      transcriptionStats, attachmentBreakdown: cls, rescheduleLinkSent, leadAfterLink,
     };
   }
 
@@ -224,7 +238,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           ? 'Last inbound is a voice/video note and Whisper transcription failed.'
           : 'Last inbound is a voice note. Configure OPENAI_API_KEY to auto-transcribe.',
       },
-      transcriptionStats, rescheduleLinkSent,
+      transcriptionStats, rescheduleLinkSent, leadAfterLink,
     };
   }
 
@@ -233,7 +247,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       ok: true, bypass: 'no-appointments',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Contact has no active future appointments' },
-      transcriptionStats, rescheduleLinkSent,
+      transcriptionStats, rescheduleLinkSent, leadAfterLink,
     };
   }
 
@@ -242,7 +256,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       ok: true, bypass: 'whitelist',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
-      transcriptionStats, rescheduleLinkSent,
+      transcriptionStats, rescheduleLinkSent, leadAfterLink,
     };
   }
 
@@ -273,18 +287,18 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   }
 
   const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
-  // Use a stricter threshold when a reschedule link was sent (ambiguous context).
-  const effectiveThreshold = threshold ?? (rescheduleLinkSent ? RESCHEDULE_CONTEXT_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
+  // Elevated threshold ONLY when the lead replied AFTER the link (true ambiguity).
+  const effectiveThreshold = threshold ?? (leadAfterLink ? POST_LINK_AMBIGUOUS_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
   if (parsed.intent !== 'no_action' && conf < effectiveThreshold) {
     logger.info('classification below threshold → no_action', {
-      confidence: conf, threshold: effectiveThreshold, rescheduleLinkSent,
+      confidence: conf, threshold: effectiveThreshold, leadAfterLink,
     });
     return {
       ok: true, bypass: 'low-confidence',
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Below threshold (${conf} < ${effectiveThreshold}). Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent,
+      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink,
     };
   }
 
@@ -295,11 +309,11 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Claude said ${parsed.intent} but listed no valid IDs. Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent,
+      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink,
     };
   }
 
-  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats, rescheduleLinkSent };
+  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats, rescheduleLinkSent, leadAfterLink };
 }
 
 module.exports = {
