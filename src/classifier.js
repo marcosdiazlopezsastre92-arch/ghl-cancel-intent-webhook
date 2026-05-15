@@ -17,41 +17,9 @@ const {
 
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 
-const BENIGN_PHRASES = new Set([
-  'vale', 'ok', 'okay', 'okey', 'oki', 'k', 'va', 'sip', 'si', 'sí', 'sii', 'siii',
-  'genial', 'perfecto', 'perfectamente', 'perfect', 'great',
-  'gracias', 'thanks', 'thx',
-  'listo', 'lista', 'listoo',
-  'nos vemos', 'nos vemos!', 'hasta entonces', 'hasta el martes', 'hasta luego',
-  'dale', 'venga', 'va va', 'genial gracias',
-  '👍', '🙏', '✅', '🔥',
-]);
-
-function normalize(text) {
-  return String(text || '')
-    .toLowerCase()
-    .replace(/[ ]/g, ' ')
-    .replace(/[!\?\.\,;:\s]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
 function lastInboundMessage(messages) {
   const inbound = (messages || []).filter((m) => (m.direction || '').toLowerCase() === 'inbound');
   return inbound.length ? inbound[inbound.length - 1] : null;
-}
-
-function isLastInboundBenign(messages) {
-  const last = lastInboundMessage(messages);
-  if (!last) return false;
-  if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
-  if (isNonAudioMediaOnly(last) && !String(last.body || '').trim()) return false;
-  if (isLeadReplyAfterRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK)) return false;
-  const norm = normalize(last.body || last.message || last.text || '');
-  if (!norm) return true;
-  const words = norm.split(' ');
-  if (words.length > 4) return false;
-  return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
 }
 
 function tsOf(o) {
@@ -262,15 +230,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     };
   }
 
-  if (isLastInboundBenign(messages)) {
-    return {
-      ok: true, bypass: 'whitelist',
-      decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
-                  followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
-      transcriptionStats, rescheduleLinkSent, leadAfterLink,
-    };
-  }
-
   const lookback = DEFAULT_MESSAGES_LOOKBACK;
   const transcript = formatMessagesForPrompt(messages, lookback);
   const aptsBlock = formatAppointmentsForPrompt(appointments, messages);
@@ -323,6 +282,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
 }
 
 module.exports = {
-  classify, isLastInboundBenign, parseClaudeJson, isAudioMessage,
+  classify, parseClaudeJson, isAudioMessage,
   formatMessagesForPrompt, formatAppointmentsForPrompt, validateAppointmentIds,
 };
