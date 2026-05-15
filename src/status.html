@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>ghl-cancel-intent-webhook</title>
+  <style>
+    body { font-family: -apple-system, system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; color: #222; }
+    h1 { font-size: 22px; }
+    code { background: #f3f3f3; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    td { padding: 8px 0; border-bottom: 1px solid #eee; vertical-align: top; }
+    td:first-child { color: #666; width: 220px; }
+    .ok { color: #1a7f37; font-weight: 600; }
+    .ko { color: #b42318; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>ghl-cancel-intent-webhook — status</h1>
+  <p>Servicio activo. Endpoint POST: <code>/webhook/ghl/cancel-intent</code></p>
+  <table>
+    <tr><td>Location ID</td><td><code>{{LOCATION_ID}}</code></td></tr>
+    <tr><td>Claude model</td><td><code>{{MODEL}}</code></td></tr>
+    <tr><td>Confidence threshold</td><td><code>{{THRESHOLD}}</code></td></tr>
+    <tr><td>Anthropic API key</td><td><code>{{HAS_KEY}}</code></td></tr>
+  </table>
+  <p style="margin-top: 30px; font-size: 13px; color: #888;">
+    Healthcheck: <a href="/health">/health</a>
+  </p>
+</body>
+</html>

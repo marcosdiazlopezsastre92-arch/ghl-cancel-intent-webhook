@@ -1,0 +1,16 @@
+{
+  "name": "ghl-cancel-intent-webhook",
+  "version": "1.0.0",
+  "description": "Cancel-intent classifier with Claude Haiku for GHL conversations",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node test/local-test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
