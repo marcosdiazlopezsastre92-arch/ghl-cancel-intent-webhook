@@ -204,6 +204,20 @@ module.exports = [
     expectedIntent: 'no_action',
   },
 
+  // ===== NEW: late "gracias" 3h after reschedule (Marcos's question) =====
+  { name: 'G3-cancel-then-link-then-late-gracias',
+    messages: [
+      { direction: 'inbound',  body: 'no puedo asistir', dateAdded: mkTs(210) /* 3.5h ago */ },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(205) /* 3h25min ago */ },
+      { direction: 'inbound',  body: 'gracias', dateAdded: mkTs(2) /* 2 min ago, 3h after link */ },
+    ],
+    appointments: [
+      // Only the NEW rescheduled call is active (old one already noshow'd by previous run)
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(120) /* 2h ago, AFTER link */ },
+    ],
+    expectedIntent: 'no_action',
+  },
+
   { name: 'G4-cancel-both',
     messages: [
       { direction: 'inbound', body: 'Marcos no puedo ir a las llamadas que tengo agendadas, cancela las dos por favor', dateAdded: mkTs(2) },
