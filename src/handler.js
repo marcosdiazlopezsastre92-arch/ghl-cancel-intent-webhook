@@ -1,6 +1,6 @@
 'use strict';
 
-const { LOCATION_ID, CUSTOM_FIELDS } = require('./config');
+const { LOCATION_ID, CUSTOM_FIELDS, CANCELLATION_NOTICE_TAG } = require('./config');
 const { parsePayload } = require('./payload');
 const { classify } = require('./classifier');
 const {
@@ -8,6 +8,7 @@ const {
   getConversationMessages,
   getContact,
   updateContact,
+  addContactTags,
   findAllActiveFutureAppointmentsForContact,
   setAppointmentStatus,
 } = require('./ghlClient');
@@ -84,10 +85,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   const appointments = appRes.appointments || [];
 
   const cls = await classify({
-    messages: msgsRes.messages,
-    appointments,
-    apiKey,
-    openaiApiKey,
+    messages: msgsRes.messages, appointments, apiKey, openaiApiKey,
     ghlAuthorization: authorization,
   });
   if (!cls.ok) {
@@ -103,9 +101,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       json: {
         ok: true, decision, bypass: cls.bypass, dryRun,
         foundActiveAppointments: appointments.length,
-        actionsTaken: [],
-        transcription: cls.transcriptionStats || null,
-        warnings,
+        actionsTaken: [], transcription: cls.transcriptionStats || null, warnings,
       },
     };
   }
@@ -116,8 +112,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       json: {
         ok: true, decision, bypass: cls.bypass, dryRun,
         foundActiveAppointments: appointments.length,
-        transcription: cls.transcriptionStats || null,
-        actionsTaken: [],
+        transcription: cls.transcriptionStats || null, actionsTaken: [],
       },
     };
   }
@@ -126,6 +121,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   const idsToCancel = decision.appointment_ids_to_noshow || [];
   const targets = appointments.filter((a) => idsToCancel.includes(String(a.id)));
 
+  // 1) Mark each targeted appointment as no-show.
   for (const appointment of targets) {
     if (dryRun) {
       actionsTaken.push({ type: 'noshow-appointment', appointmentId: appointment.id,
@@ -142,6 +138,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     }
   }
 
+  // 2) Decide custom fields.
   const fieldsToSet = [];
   if (decision.intent === 'cancel_with_followup') {
     const optionLabel = mapDelayToOption(decision.followup_delay_days || 1);
@@ -179,12 +176,38 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     }
   }
 
+  // 3) Add the "inv x cancelación avisada" tag for FULL cancellations only.
+  // NOT for cancel_partial (lead still has other active calls).
+  const shouldAddCancelTag =
+    (decision.intent === 'cancel_with_followup' || decision.intent === 'cancel_no_followup')
+    && targets.length > 0; // safety: only if we actually noshow'd something
+
+  if (shouldAddCancelTag) {
+    if (dryRun) {
+      actionsTaken.push({
+        type: 'add-tag', tag: CANCELLATION_NOTICE_TAG.name,
+        tagId: CANCELLATION_NOTICE_TAG.id, dryRun: true,
+      });
+    } else {
+      const tagRes = await addContactTags({
+        authorization, contactId, tags: [CANCELLATION_NOTICE_TAG.name],
+      });
+      if (tagRes.ok) {
+        actionsTaken.push({
+          type: 'add-tag', tag: CANCELLATION_NOTICE_TAG.name,
+          tagId: CANCELLATION_NOTICE_TAG.id, shape: Object.keys(tagRes.body || {}).join(','),
+        });
+      } else {
+        errors.push({ type: 'add-tag', error: 'all-shapes-failed' });
+      }
+    }
+  }
+
   return {
     status: 200,
     json: {
       ok: errors.length === 0,
-      decision,
-      bypass: cls.bypass || null,
+      decision, bypass: cls.bypass || null,
       conversationId: conversation.id,
       messagesAnalyzed: msgsRes.messages.length,
       foundActiveAppointments: appointments.length,

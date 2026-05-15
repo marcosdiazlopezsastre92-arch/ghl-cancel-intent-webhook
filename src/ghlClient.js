@@ -7,10 +7,8 @@ const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/
 
 function headers(authorization, version) {
   return {
-    Authorization: authorization,
-    Version: version,
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
+    Authorization: authorization, Version: version,
+    Accept: 'application/json', 'Content-Type': 'application/json',
     'User-Agent': BROWSER_UA,
   };
 }
@@ -37,7 +35,6 @@ async function tryVariants(buildRequest, label) {
   return { ok: false, errors };
 }
 
-// ---- conversations ----------------------------------------------------
 async function findConversationForContact({ authorization, locationId, contactId }) {
   const result = await tryVariants((version) => {
     const params = new URLSearchParams({ locationId, contactId });
@@ -64,7 +61,6 @@ async function getConversationMessages({ authorization, conversationId, limit = 
   return { ok: true, messages: Array.isArray(msgs) ? msgs : [] };
 }
 
-// ---- contacts ---------------------------------------------------------
 async function getContact({ authorization, contactId }) {
   const result = await tryVariants((version) => ({
     url: `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}`,
@@ -83,7 +79,25 @@ async function updateContact({ authorization, contactId, body }) {
   return { ok: true, response: result.json };
 }
 
-// ---- calendars / appointments ----------------------------------------
+// Adds one or more tags to a contact WITHOUT removing the existing ones.
+// GHL API: POST /contacts/{id}/tags accepts {"tags": ["name1", "name2"]}.
+// Tries 2 body shapes for compatibility across API versions.
+async function addContactTags({ authorization, contactId, tags }) {
+  if (!Array.isArray(tags) || tags.length === 0) return { ok: true, skipped: true };
+  const bodyVariants = [
+    { tags },
+    { tag: tags[0] }, // some versions accept singular
+  ];
+  for (const body of bodyVariants) {
+    const result = await tryVariants((version) => ({
+      url: `${GHL_API_BASE}/contacts/${encodeURIComponent(contactId)}/tags`,
+      init: { method: 'POST', headers: headers(authorization, version), body: JSON.stringify(body) },
+    }), `add-tag(${Object.keys(body).join(',')})`);
+    if (result.ok) return { ok: true, version: result.version, body, response: result.json };
+  }
+  return { ok: false };
+}
+
 async function listCalendarsForLocation({ authorization, locationId }) {
   const result = await tryVariants((version) => ({
     url: `${GHL_API_BASE}/calendars/?locationId=${encodeURIComponent(locationId)}`,
@@ -111,8 +125,6 @@ async function listFutureEventsForCalendar({ authorization, locationId, calendar
   return { ok: true, events: Array.isArray(events) ? events : [] };
 }
 
-// Returns ALL active future appointments for the contact across all calendars.
-// Sorted by startTime ascending (closest first).
 async function findAllActiveFutureAppointmentsForContact({ authorization, locationId, contactId }) {
   const calRes = await listCalendarsForLocation({ authorization, locationId });
   if (!calRes.ok) return { ok: false, errors: [{ stage: 'list-calendars', errors: calRes.errors }] };
@@ -154,10 +166,7 @@ async function findAllActiveFutureAppointmentsForContact({ authorization, locati
   };
 
   const candidates = allEvents.filter((ev) => contactsMatch(ev) && isFuture(ev) && isActive(ev));
-  candidates.sort(
-    (a, b) => new Date(a.startTime || a.start_time) - new Date(b.startTime || b.start_time)
-  );
-
+  candidates.sort((a, b) => new Date(a.startTime || a.start_time) - new Date(b.startTime || b.start_time));
   return { ok: true, appointments: candidates, partialErrors };
 }
 
@@ -178,10 +187,7 @@ async function setAppointmentStatus({ authorization, eventId, status }) {
 }
 
 module.exports = {
-  findConversationForContact,
-  getConversationMessages,
-  getContact,
-  updateContact,
-  findAllActiveFutureAppointmentsForContact,
-  setAppointmentStatus,
+  findConversationForContact, getConversationMessages,
+  getContact, updateContact, addContactTags,
+  findAllActiveFutureAppointmentsForContact, setAppointmentStatus,
 };
