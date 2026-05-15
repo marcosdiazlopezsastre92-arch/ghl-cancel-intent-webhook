@@ -14,8 +14,23 @@ const {
 } = require('./ghlClient');
 const logger = require('./logger');
 
+// Snap any incoming delay to one of {1, 3, 7}. Even though the prompt
+// constrains Claude to those values, we treat the LLM output as untrusted.
+//   1 or 2 days  → 1
+//   3, 4, 5 days → 3
+//   6+ days      → 7
+//   missing/0/NaN → 1 (default)
+function snapDelay(days) {
+  const n = Number(days);
+  if (!Number.isFinite(n) || n <= 0) return 1;
+  if (n <= 2) return 1;
+  if (n <= 5) return 3;
+  return 7;
+}
+
 function mapDelayToOption(days) {
-  return CUSTOM_FIELDS.FOLLOWUP_DELAY.options[days] || null;
+  const snapped = snapDelay(days);
+  return { snapped, label: CUSTOM_FIELDS.FOLLOWUP_DELAY.options[snapped] || null };
 }
 
 async function setContactCustomFields({ authorization, contactId, fields }) {
@@ -141,17 +156,30 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   // 2) Custom fields.
   const fieldsToSet = [];
   if (decision.intent === 'cancel_with_followup') {
-    const optionLabel = mapDelayToOption(decision.followup_delay_days || 1);
-    if (!optionLabel) {
-      errors.push({ type: 'unknown-delay', received: decision.followup_delay_days });
-    } else {
-      fieldsToSet.push({ fieldId: CUSTOM_FIELDS.FOLLOWUP_DELAY.id, value: optionLabel, label: 'FOLLOWUP_DELAY' });
+    const requestedDelay = decision.followup_delay_days;
+    const { snapped, label: optionLabel } = mapDelayToOption(requestedDelay);
+    if (requestedDelay !== snapped) {
+      logger.warn('followup_delay_days snapped to canonical value', {
+        received: requestedDelay, applied: snapped,
+      });
+      warnings.push({
+        type: 'delay-snapped',
+        received: requestedDelay,
+        applied: snapped,
+        note: 'Claude returned a non-canonical delay; code mapped it to the nearest valid option.',
+      });
     }
-    fieldsToSet.push({
-      fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
-      value: CUSTOM_FIELDS.REMOVE_FROM_AUTO.options.yes,
-      label: 'REMOVE_FROM_AUTO',
-    });
+    if (!optionLabel) {
+      // Should be impossible (snap always returns a key in options) but guard anyway.
+      errors.push({ type: 'unknown-delay-after-snap', received: requestedDelay, snapped });
+    } else {
+      fieldsToSet.push({
+        fieldId: CUSTOM_FIELDS.FOLLOWUP_DELAY.id,
+        value: optionLabel,
+        label: 'FOLLOWUP_DELAY',
+        appliedDelayDays: snapped,
+      });
+    }
   } else if (decision.intent === 'cancel_no_followup') {
     fieldsToSet.push({
       fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
