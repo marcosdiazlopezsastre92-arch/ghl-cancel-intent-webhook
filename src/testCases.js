@@ -204,18 +204,32 @@ module.exports = [
     expectedIntent: 'no_action',
   },
 
-  // ===== NEW: late "gracias" 3h after reschedule (Marcos's question) =====
   { name: 'G3-cancel-then-link-then-late-gracias',
     messages: [
-      { direction: 'inbound',  body: 'no puedo asistir', dateAdded: mkTs(210) /* 3.5h ago */ },
-      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(205) /* 3h25min ago */ },
-      { direction: 'inbound',  body: 'gracias', dateAdded: mkTs(2) /* 2 min ago, 3h after link */ },
+      { direction: 'inbound',  body: 'no puedo asistir', dateAdded: mkTs(210) },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(205) },
+      { direction: 'inbound',  body: 'gracias', dateAdded: mkTs(2) },
     ],
     appointments: [
-      // Only the NEW rescheduled call is active (old one already noshow'd by previous run)
-      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(120) /* 2h ago, AFTER link */ },
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(120) },
     ],
     expectedIntent: 'no_action',
+  },
+
+  // ===== NEW: hours after rescheduling, lead explicitly cancels the new call =====
+  { name: 'G3-cancel-then-link-then-late-explicit-cancel',
+    messages: [
+      { direction: 'inbound',  body: 'no puedo asistir', dateAdded: mkTs(360) /* 6h ago */ },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(355) },
+      { direction: 'inbound',  body: 'gracias', dateAdded: mkTs(180) /* 3h ago */ },
+      { direction: 'inbound',  body: 'oye que al final no quiero tener la llamada', dateAdded: mkTs(2) },
+    ],
+    appointments: [
+      // Only the NEW rescheduled call is active. Lead is now asking to cancel IT.
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(300) /* created 5h ago, AFTER link */ },
+    ],
+    expectedIntent: 'cancel_with_followup', // explicit cancel of post-link call
+    expectedIdsCount: 1,
   },
 
   { name: 'G4-cancel-both',
