@@ -15,8 +15,6 @@ const {
   isLeadReplyAfterRescheduleLink,
 } = require('./rescheduleDetector');
 
-// Lowered from 0.90 -> 0.85 because Claude was too easily demoted on
-// genuinely clear acceptances after a link.
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 
 const BENIGN_PHRASES = new Set([
@@ -128,74 +126,75 @@ En la lista de "LLAMADAS FUTURAS ACTIVAS", una cita PUEDE venir marcada con el t
 está explícitamente presente en la lista que te paso) debes asumir que esa cita es resultado
 del reagendado del lead y NO incluirla en appointment_ids_to_noshow, salvo que el lead pida
 explícitamente cancelarla DESPUÉS de haberla creado (ej: "ah espera, cancela también esa nueva").
-Si una cita NO tiene ese marcador, trata su fecha de creación como información meramente
-descriptiva — NO infieras que es post-enlace por su nombre de calendario o por el contexto.
-
-LA AUSENCIA del marcador NO SIGNIFICA que el lead haya aceptado el reagendado. Significa que el
-lead todavía no ha clicado el enlace (o no lo hará). Por eso, silencio/ambigüedad sigue siendo
-no_action en cualquier caso.
+Si una cita NO tiene ese marcador, trata su fecha de creación como información descriptiva.
+LA AUSENCIA del marcador NO SIGNIFICA que el lead haya aceptado el reagendado.
 
 REGLAS POST-ENLACE (cuando el Coach envió el [ENVIÓ ENLACE DE REAGENDAR]):
 - Lead aceptó CLARAMENTE después del link ("vale gracias", "perfecto, lo cambio", "dámelo",
-  "miro y reagendo", "genial", "vale cuando pueda reagendo") → cancel_with_followup
-  (independientemente de si hay cita post-enlace creada o no).
+  "miro y reagendo", "genial", "vale cuando pueda reagendo") → cancel_with_followup.
 - Lead RECHAZÓ el reagendado o reafirma asistencia ("no, mejor lo dejo", "déjalo, sí voy",
   "olvídalo, iré", "al final sí puedo", "sí voy") → no_action.
 - Lead respondió ambiguamente o no respondió ("déjame pensarlo", "luego te digo", "vale" sin
-  más, silencio total) → no_action (conservador, NUNCA asumir aceptación por silencio).
-- Lead YA había cancelado claramente ANTES del link (ej: "no podré asistir" → link → silencio)
-  → cancel_with_followup (la cancelación inicial sigue vigente).
+  más, silencio total) → no_action (NUNCA asumir aceptación por silencio).
+- Lead YA había cancelado claramente ANTES del link y no respondió al link → cancel_with_followup.
 
-EJEMPLOS CRÍTICOS POST-ENLACE (lee el mensaje COMPLETO del lead):
-  Lead: "no sé si podré asistir"
-  Coach [ENVIÓ ENLACE DE REAGENDAR]: "vale, aquí tienes el enlace"
-  Lead: "vale, gracias"            → cancel_with_followup
-  Lead: "vale, lo cambio ahora"    → cancel_with_followup
-  Lead: "vale cuando pueda reagendo" → cancel_with_followup
-  Lead: "vale, sí puedo asistir"   → no_action (¡RECHAZÓ!)
-  Lead: "al final sí voy, gracias" → no_action (¡RECHAZÓ!)
-  Lead: "no no, déjalo, iré"        → no_action
-  Lead: "vale" (solo)              → no_action (ambiguo)
-  Lead: "déjame pensarlo"          → no_action
-  (sin respuesta posterior del lead)  → no_action (silencio = no aceptación)
+DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
-EJEMPLO con cancelación CLARA antes del link:
-  Lead: "Marcos no podré asistir a la llamada"
-  Coach [ENVIÓ ENLACE DE REAGENDAR]: "vale, aquí tienes el enlace"
-  (sin respuesta posterior) → cancel_with_followup
+cancel_with_followup es el DEFAULT para CUALQUIER cancelación. Aplica cuando el lead simplemente
+no puede/no quiere ESA llamada concreta (por motivo cualquiera: enfermedad, agenda, no le apetece,
+se le complica, etc.). Aunque diga cosas como "no quiero tener la llamada", "déjalo", "no me
+va bien" — sigue siendo cancel_with_followup. Queremos seguir intentándolo en el seguimiento.
 
-EJEMPLO con cita marcada post-enlace:
-  Lead: "se me complica, pásame para reagendar"
-  Coach [ENVIÓ ENLACE DE REAGENDAR]: "aquí tienes"
-  Lead: "gracias"
-  LLAMADAS FUTURAS ACTIVAS: 1 cita CREADA 4min DESPUÉS del envio del enlace (marcador presente)
-  → no_action (lead ya reagendó, no hay nada que hacer)
+cancel_no_followup SOLO cuando el lead expresa RECHAZO TOTAL DEL PROGRAMA/AGENCIA. Necesitas
+señales muy fuertes y explícitas como:
+  - "ya no me interesa" / "perdí el interés"
+  - "voy a tirar con otro entrenador" / "voy con otro"
+  - "borra mis datos" / "quítame de tu lista" / "no me contactes más"
+  - "déjame en paz" / "no me molestes más"
+  - Cualquier rechazo claro del programa entero, no solo de una llamada concreta.
 
-IMPORTANTE: cualquier afirmación del lead POSTERIOR al link de que VA a asistir ("sí puedo",
-"al final voy", "déjalo", "olvídalo", "iré", "sí voy") SIEMPRE gana sobre un "vale" inicial.
+SI HAY DUDA entre with_followup y no_followup → SIEMPRE elige cancel_with_followup. Es preferible
+seguirle insistiendo a un lead que está cansado que abandonar a un lead que solo no podía esa
+llamada concreta.
+
+DETECCIÓN DE EMERGENCIAS / IMPREVISTOS:
+Si el lead comunica una situación grave (familiar en hospital, urgencia médica, problema serio)
+aunque no diga "cancelar" explícitamente, asume que NO va a poder asistir y aplica
+cancel_with_followup con delay 7 días (situación seria). Mejor activar el seguimiento ya que
+dejar la cita colgando.
+Ejemplos: "mi madre está ingresada en el hospital", "se me ha jodido el día con un imprevisto",
+"tengo que llevar a mi hijo al médico de urgencia".
+
+DETECCIÓN DE CAMBIOS DE HORA LEVES (no son cancelación):
+Si el lead pide un pequeño ajuste de horario el MISMO día ("me das 15 min más", "podemos a las
+19 en vez de las 18", "un poco más tarde"), eso NO es cancelación: es solo un ajuste menor que
+gestiona el coach humano. Devuelve no_action.
+
+DETECCIÓN DE PREGUNTAS DE CONFIRMACIÓN (no son cancelación):
+Si el lead PREGUNTA si la llamada sigue en pie ("sigue en pie lo de hoy?", "confírmame que
+tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
-  silencio post-link, o lead ya reagendó vía enlace (con marcador post-enlace presente). NADA.
-- "cancel_with_followup": cancelar TODAS las citas activas (excepto las marcadas POST-ENLACE) y
-  poner en seguimiento automático.
-- "cancel_no_followup": cancelación DURA ("ya no me interesa", "voy con otro entrenador",
-  "borra mis datos"). Cancelar TODAS las pre-enlace, sin seguimiento.
+  silencio post-link, pequeño ajuste de hora, o lead ya reagendó (con marcador post-enlace).
+- "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
+  POST-ENLACE) y se le debe poner en seguimiento automático. ES EL DEFAULT para cualquier
+  cancelación con motivos no agresivos.
+- "cancel_no_followup": SOLO para rechazo total del programa con señales muy explícitas.
+  Cancela TODAS las pre-enlace, sin seguimiento. Caso raro.
 - "cancel_partial": cancelar SOLO algunas citas concretas que el lead especificó, no todas.
   No se pone en seguimiento porque aún tiene otras llamadas pendientes.
 
 REGLAS GENERALES:
-- Mejor "no_action" si tienes la más mínima duda.
-- "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista que te paso. Si el lead
-  no especifica cuál, asume TODAS las citas activas SIN el marcador POST-ENLACE.
-- Si solo hay 1 cita y dice "cancelélalo" sin especificar → cancel_with_followup con esa cita.
-- Si hay 2+ citas (ninguna marcada post-enlace) y dice "cancela las dos" o no especifica →
-  cancel_with_followup con TODAS.
-- Si hay 2+ y dice "cancel solo la del martes" → cancel_partial con SOLO esa.
+- Mejor "no_action" si tienes la más mínima duda sobre si hay cancelación.
+- Si está claro que hay cancelación pero dudas entre with_followup y no_followup → with_followup.
+- "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista. Si el lead no especifica
+  cuál, asume TODAS las citas activas SIN el marcador POST-ENLACE.
 - Para el delay del seguimiento (cancel_with_followup):
   * 1 día (default): cancelación sin contexto especial
-  * 3 días: malestar puntual ("dolor de cabeza", "estoy malo")
-  * 7 días: enfermedad seria, viaje, agenda muy cargada ("esta semana fatal", "de viaje")
+  * 3 días: malestar puntual ("dolor de cabeza", "estoy malo", urgencia médica de hijo, etc.)
+  * 7 días: enfermedad seria, viaje, agenda muy cargada, emergencia familiar (madre ingresada,
+    hijo en urgencias, semana fatal, viaje toda la semana)
 
 Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional):
 {

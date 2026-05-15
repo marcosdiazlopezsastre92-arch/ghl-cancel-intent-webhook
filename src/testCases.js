@@ -13,7 +13,6 @@ const APT_1 = { id: 'evt_FUTURE_001', startTime: mkFutureTs(1), calendarName: 'C
 const APT_2 = { id: 'evt_FUTURE_002', startTime: mkFutureTs(3), calendarName: 'LM', dateAdded: mkTs(60 * 24 * 3) };
 
 module.exports = [
-  // ===== GROUP 1: Direct cancellations =====
   { name: 'G1-direct-cancel',
     messages: [
       { direction: 'outbound', body: 'Tienes tu llamada agendada para mañana', dateAdded: mkTs(20) },
@@ -55,7 +54,6 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'cancel_with_followup',
   },
 
-  // ===== GROUP 2: Benign / no_action (no link) =====
   { name: 'G2-confirmation-short',
     messages: [
       { direction: 'outbound', body: 'Recuerda que mañana a las 18h tenemos la llamada', dateAdded: mkTs(20) },
@@ -83,7 +81,6 @@ module.exports = [
     appointments: [], expectedIntent: 'no_action',
   },
 
-  // ===== GROUP 3: With reschedule link =====
   { name: 'G3-link-accept-thanks',
     messages: [
       { direction: 'inbound',  body: 'Marcos no sé si podré asistir hoy', dateAdded: mkTs(15) },
@@ -224,10 +221,10 @@ module.exports = [
     appointments: [
       { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(300) },
     ],
+    // Soft cancel — "no quiero tener la llamada" es soft, NO hard cancel.
     expectedIntent: 'cancel_with_followup', expectedIdsCount: 1,
   },
 
-  // ===== GROUP 4: Partial cancellations =====
   { name: 'G4-cancel-both',
     messages: [
       { direction: 'inbound', body: 'Marcos no puedo ir a las llamadas que tengo agendadas, cancela las dos por favor', dateAdded: mkTs(2) },
@@ -248,7 +245,6 @@ module.exports = [
     appointments: [APT_1, APT_2], expectedIntent: 'cancel_with_followup', expectedIdsCount: 2,
   },
 
-  // ===== GROUP 5: Edge cases =====
   { name: 'G5-just-vale-alone-no-link',
     messages: [
       { direction: 'outbound', body: 'Te paso el material que te prometí', dateAdded: mkTs(10) },
@@ -269,23 +265,20 @@ module.exports = [
     appointments: [APT_1], expectedIntent: 'no_action',
   },
 
-  // ===== GROUP 6: Tricky language patterns (Marcos requested) =====
-
-  // 6.1 Implicit cancels via personal emergency
+  // GROUP 6: Tricky language patterns
   { name: 'G6-implicit-vague-aviso-luego',
     messages: [
       { direction: 'inbound', body: 'Marcos, mi madre está ingresada en el hospital, te aviso luego', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    // Vague — lead doesn’t explicitly cancel, says "te aviso luego". Conservative = no_action.
-    expectedIntent: 'no_action',
+    // Updated: emergencia familiar grave → cancel_with_followup con 7d (Claude tiene razón)
+    expectedIntent: 'cancel_with_followup',
   },
   { name: 'G6-implicit-cant-explicit',
     messages: [
       { direction: 'inbound', body: 'Marcos, mi madre está en el hospital, no podré ir hoy', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    // Explicit "no podré ir hoy" → cancel
     expectedIntent: 'cancel_with_followup',
   },
   { name: 'G6-implicit-medical-other-day',
@@ -293,27 +286,22 @@ module.exports = [
       { direction: 'inbound', body: 'Tengo que llevar a mi hijo al médico de urgencia, lo dejamos para otro día?', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    // "lo dejamos para otro día?" → explicit reschedule request
     expectedIntent: 'cancel_with_followup',
   },
-
-  // 6.2 Small time tweak (not a cancel)
   { name: 'G6-time-tweak-15min',
     messages: [
       { direction: 'inbound', body: 'Marcos, me das 15 minutos más? Voy a llegar un poco tarde', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // small delay, not a cancellation
+    expectedIntent: 'no_action',
   },
   { name: 'G6-time-tweak-same-day-shift',
     messages: [
       { direction: 'inbound', body: 'Podemos hacerla a las 19 en vez de las 18 hoy?', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // requesting time change same day, not full cancel
+    expectedIntent: 'no_action',
   },
-
-  // 6.3 Lead asks for confirmation (not cancelling)
   { name: 'G6-question-still-on',
     messages: [
       { direction: 'inbound', body: 'Marcos sigue en pie lo de hoy?', dateAdded: mkTs(2) },
@@ -328,8 +316,6 @@ module.exports = [
     appointments: [APT_1],
     expectedIntent: 'no_action',
   },
-
-  // 6.4 Lead changes mind 3 times, ending in YES
   { name: 'G6-flip-flop-final-yes',
     messages: [
       { direction: 'inbound', body: 'Marcos no creo que pueda hoy', dateAdded: mkTs(20) },
@@ -338,6 +324,6 @@ module.exports = [
       { direction: 'inbound', body: 'no espera, vale, al final voy sí', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1],
-    expectedIntent: 'no_action', // final state = attending
+    expectedIntent: 'no_action',
   },
 ];
