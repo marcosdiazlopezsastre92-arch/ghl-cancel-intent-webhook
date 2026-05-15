@@ -3,11 +3,14 @@
 function mkTs(minsAgo) {
   return new Date(Date.now() - minsAgo * 60 * 1000).toISOString();
 }
+function mkFutureTs(daysAhead) {
+  return new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000).toISOString();
+}
 
 const RESCHEDULE_LINK = 'Aquí tienes el enlace para mover la llamada: https://api.leadconnectorhq.com/widget/bookings/round-normalrqpm6x';
 
-const APT_1 = { id: 'evt_FUTURE_001', startTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), calendarName: 'Calendario - VSL' };
-const APT_2 = { id: 'evt_FUTURE_002', startTime: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), calendarName: 'Reagendar llamada' };
+const APT_1 = { id: 'evt_FUTURE_001', startTime: mkFutureTs(1), calendarName: 'Calendario - VSL', dateAdded: mkTs(60 * 24 * 5) /* 5 days ago */ };
+const APT_2 = { id: 'evt_FUTURE_002', startTime: mkFutureTs(3), calendarName: 'Reagendar llamada', dateAdded: mkTs(60 * 24 * 3) /* 3 days ago */ };
 
 module.exports = [
   { name: 'G1-direct-cancel',
@@ -42,8 +45,6 @@ module.exports = [
     ],
     appointments: [APT_1], expectedIntent: 'cancel_no_followup',
   },
-
-  // ===== NEW: real-world medical case (Marcos's example) =====
   { name: 'G1-real-medical-renal-colic',
     messages: [
       { direction: 'inbound',  body: 'Hola buenas tardes!! He tenido cólico nefriticos! Y mañana voy al hospital. Una amiga uróloga me va a hacer unas pruebas', dateAdded: mkTs(8) },
@@ -52,7 +53,6 @@ module.exports = [
     ],
     appointments: [APT_1],
     expectedIntent: 'cancel_with_followup',
-    // delay could reasonably be 3 OR 7 — both acceptable. Don't assert delay value.
   },
 
   { name: 'G2-confirmation-short',
@@ -154,7 +154,6 @@ module.exports = [
     ],
     appointments: [APT_1], expectedIntent: 'no_action',
   },
-
   { name: 'G3-no-se-then-link-silence',
     messages: [
       { direction: 'inbound',  body: 'no sé si podré asistir', dateAdded: mkTs(10) },
@@ -169,6 +168,49 @@ module.exports = [
       { direction: 'inbound',  body: 'vale cuando pueda reagendo', dateAdded: mkTs(2) },
     ],
     appointments: [APT_1], expectedIntent: 'cancel_with_followup',
+  },
+
+  // ========== NEW: appointment created AFTER the link (lead actually rescheduled) ==========
+  // Marcos's exact case: lead asks for link, AI sends it, lead clicks and books NEW call,
+  // lead says "gracias". Active appointment list now shows the NEW post-link call.
+  // Should NOT cancel — the lead already rescheduled.
+  { name: 'G3-rescheduled-then-thanks',
+    messages: [
+      { direction: 'inbound',  body: 'se me complica asistir, pásame para reagendar porfa', dateAdded: mkTs(15) },
+      { direction: 'outbound', body: `Claro, ${RESCHEDULE_LINK}`, dateAdded: mkTs(12) },
+      { direction: 'inbound',  body: 'gracias!', dateAdded: mkTs(2) },
+    ],
+    appointments: [
+      // Active appointment created AFTER the link (the new reschedule)
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(8) /* created 8min ago, AFTER link at mkTs(12) */ },
+    ],
+    expectedIntent: 'no_action',
+  },
+  { name: 'G3-rescheduled-then-cancel-it',
+    messages: [
+      { direction: 'inbound',  body: 'se me complica, pásame para reagendar', dateAdded: mkTs(20) },
+      { direction: 'outbound', body: `Aquí: ${RESCHEDULE_LINK}`, dateAdded: mkTs(18) },
+      { direction: 'inbound',  body: 'gracias!', dateAdded: mkTs(13) },
+      { direction: 'inbound',  body: 'ah espera mira mejor cancela también esta nueva, no creo que pueda esta semana', dateAdded: mkTs(2) },
+    ],
+    appointments: [
+      { id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar llamada', dateAdded: mkTs(15) /* AFTER link */ },
+    ],
+    expectedIntent: 'cancel_with_followup',
+  },
+  { name: 'G3-rescheduled-then-dejalo',
+    messages: [
+      { direction: 'inbound',  body: 'se me complica, pásame para reagendar', dateAdded: mkTs(20) },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(18) },
+      { direction: 'inbound',  body: 'gracias!', dateAdded: mkTs(13) },
+      { direction: 'inbound',  body: 'ah no espera al final puedo, déjalo', dateAdded: mkTs(2) },
+    ],
+    appointments: [
+      // The lead's old appt is still active (didn't actually use the link in this scenario, even though they asked).
+      // Still should be no_action because the lead retracted.
+      APT_1,
+    ],
+    expectedIntent: 'no_action',
   },
 
   { name: 'G4-cancel-both',

@@ -15,7 +15,6 @@ const {
   isLeadReplyAfterRescheduleLink,
 } = require('./rescheduleDetector');
 
-// Elevated threshold ONLY when the lead's reply came AFTER the link (ambiguous).
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.90;
 
 const BENIGN_PHRASES = new Set([
@@ -47,7 +46,6 @@ function isLastInboundBenign(messages) {
   if (!last) return false;
   if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
   if (isNonAudioMediaOnly(last) && !String(last.body || '').trim()) return false;
-  // If the lead replied AFTER a reschedule link, never whitelist — even "vale".
   if (isLeadReplyAfterRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK)) return false;
   const norm = normalize(last.body || last.message || last.text || '');
   if (!norm) return true;
@@ -56,12 +54,27 @@ function isLastInboundBenign(messages) {
   return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
 }
 
+function tsOf(o) {
+  if (!o) return 0;
+  const s = o.dateAdded || o.dateCreated || o.createdAt || o;
+  const t = new Date(s).getTime();
+  return Number.isNaN(t) ? 0 : t;
+}
+
+// Latest timestamp among outbound messages that contain the reschedule link.
+function mostRecentLinkTimestamp(messages) {
+  let latest = 0;
+  for (const m of messages || []) {
+    if ((m.direction || '').toLowerCase() !== 'outbound') continue;
+    if (!messageContainsRescheduleLink(m)) continue;
+    const t = tsOf(m);
+    if (t > latest) latest = t;
+  }
+  return latest;
+}
+
 function formatMessagesForPrompt(messages, lookback) {
-  const sorted = [...messages].sort((a, b) => {
-    const ta = new Date(a.dateAdded || a.dateCreated || a.createdAt || 0).getTime();
-    const tb = new Date(b.dateAdded || b.dateCreated || b.createdAt || 0).getTime();
-    return ta - tb;
-  });
+  const sorted = [...messages].sort((a, b) => tsOf(a) - tsOf(b));
   const recent = sorted.slice(-lookback);
   return recent.map((m) => {
     const ts = m.dateAdded || m.dateCreated || m.createdAt || '';
@@ -77,14 +90,24 @@ function formatMessagesForPrompt(messages, lookback) {
   }).join('\n');
 }
 
-function formatAppointmentsForPrompt(appointments) {
+function formatAppointmentsForPrompt(appointments, messages) {
   if (!appointments || appointments.length === 0) {
     return '(El contacto no tiene citas futuras activas.)';
   }
+  const linkTs = mostRecentLinkTimestamp(messages || []);
   return appointments.map((a, i) => {
     const start = a.startTime || a.start_time || '?';
     const cal = a.calendarName || a.calendarId || '?';
-    return `${i + 1}. id=${a.id} | inicio=${start} | calendario=${cal}`;
+    let createdContext = '';
+    const createdTs = tsOf(a);
+    if (createdTs && linkTs && createdTs > linkTs) {
+      const minsAfter = Math.round((createdTs - linkTs) / 60000);
+      createdContext = ` | CREADA ${minsAfter}min DESPUÉS del envio del enlace de reagendar ` +
+                       `(POSIBLEMENTE ES EL RESULTADO DEL REAGENDADO DEL LEAD — NO CANCELAR salvo que el lead lo pida explicitamente)`;
+    } else if (createdTs) {
+      createdContext = ` | creada=${a.dateAdded || a.dateCreated || a.createdAt}`;
+    }
+    return `${i + 1}. id=${a.id} | inicio=${start} | calendario=${cal}${createdContext}`;
   }).join('\n');
 }
 
@@ -99,43 +122,62 @@ cuando detecta señales de duda o cancelación del lead, suele responder ofrecie
 REAGENDAR. Si en el historial ves un mensaje del Coach prefijado con el marcador
 [ENVIÓ ENLACE DE REAGENDAR], significa que la IA ya intervino y mandó el enlace para mover la cita.
 
+REGLA CRÍTICA SOBRE CITAS CREADAS DESPUÉS DEL ENLACE:
+En la lista de "LLAMADAS FUTURAS ACTIVAS", cada cita lleva metadata de cuándo fue creada. Si una
+cita aparece marcada como "CREADA Xmin DESPUÉS del envio del enlace de reagendar", esa cita
+es con muy alta probabilidad EL RESULTADO de que el lead clicó el enlace y reservó una nueva
+llamada. NO INCLUYAS esa cita en appointment_ids_to_noshow salvo que el lead pida EXPLÍCITAMENTE
+cancelarla DESPUÉS de haberla creado (ej: "ah espera, cancela también esa nueva").
+
+Si TODAS las citas activas son post-enlace (resultado del reagendado del lead) y no hay
+petición explícita de cancelarlas → no_action.
+
 REGLAS ESPECIALES CUANDO HAY [ENVIÓ ENLACE DE REAGENDAR] en el historial reciente:
 - Si el lead aceptó CLARAMENTE el reagendado después del link ("vale gracias", "perfecto",
-  "dámelo", "miro y reagendo", "genial, lo cambio") → cancel_with_followup.
+  "dámelo", "miro y reagendo", "genial, lo cambio") Y NO HAY YA UNA CITA POST-ENLACE creada
+  → cancel_with_followup. Si ya hay cita post-enlace, el reagendado ya se hizo → no_action.
 - Si el lead RECHAZÓ explícitamente el reagendado o confirmó que IGUAL SÍ VA a la llamada
   ("no, mejor lo dejo", "déjalo, sí voy", "olvídalo, iré", "al final sí puedo", "sí voy")
   → no_action.
 - Si el lead respondió ambiguamente o no respondió después del link ("déjame pensarlo",
   "luego te digo", "vale" sin más, silencio total) → no_action (conservador).
 - Si el lead YA había cancelado claramente ANTES de que el AI enviara el link (ej: lead dice
-  "no podré asistir" → AI manda link → sin respuesta del lead) → cancel_with_followup (la
-  cancelación del lead sigue vigente, el link no la anula).
+  "no podré asistir" → AI manda link → sin respuesta del lead) → cancel_with_followup.
 
 EJEMPLOS CRÍTICOS POST-ENLACE (lee el mensaje COMPLETO del lead, no solo la primera palabra):
   Lead: "no sé si podré asistir"
   Coach [ENVIÓ ENLACE DE REAGENDAR]: "vale, aquí tienes el enlace para mover la llamada"
-  Lead: "vale, gracias"            → cancel_with_followup (aceptó)
-  Lead: "vale, lo cambio ahora"    → cancel_with_followup (aceptó)
+  Lead: "vale, gracias"            → cancel_with_followup (aceptó, asumiendo que NO hay cita post-link)
+  Lead: "vale, lo cambio ahora"    → cancel_with_followup
   Lead: "vale, sí puedo asistir"   → no_action (¡RECHAZÓ! va a ir igual)
   Lead: "al final sí voy, gracias" → no_action (¡RECHAZÓ!)
-  Lead: "no no, déjalo, iré"        → no_action (¡RECHAZÓ!)
-  Lead: "vale" (sin más)           → no_action (ambiguo → conservador)
+  Lead: "no no, déjalo, iré"        → no_action
+  Lead: "vale" (sin más)           → no_action (ambiguo)
   Lead: "déjame pensarlo"          → no_action (ambiguo)
-  Lead: "lo miro luego"            → no_action (ambiguo)
+  Lead: "lo miro luego"            → no_action
 
-EJEMPLO con cancelación CLARA antes del link:
+EJEMPLO con cita CREADA POST-ENLACE:
+  Lead: "se me complica, pásame para reagendar"
+  Coach [ENVIÓ ENLACE DE REAGENDAR]: "aquí tienes"
+  Lead: "gracias"
+  LLAMADAS FUTURAS ACTIVAS: 1 cita CREADA 2min DESPUÉS del envio del enlace
+  → no_action (el lead ya reagendó vía el link, no hay nada que cancelar)
+
+EJEMPLO con cancelación CLARA antes del link y SIN cita post-enlace:
   Lead: "Marcos no podré asistir a la llamada"
   Coach [ENVIÓ ENLACE DE REAGENDAR]: "vale, aquí tienes el enlace"
-  (sin respuesta posterior del lead) → cancel_with_followup (lead ya canceló claramente)
+  (sin respuesta posterior del lead)
+  → cancel_with_followup
 
 IMPORTANTE: cualquier afirmación del lead POSTERIOR al link de que VA a asistir ("sí puedo",
 "al final voy", "déjalo", "olvídalo", "iré", "sí voy") SIEMPRE gana sobre un "vale" inicial.
-NO cancelar la llamada en estos casos.
 
 INTENTS POSIBLES:
-- "no_action": conversación normal, confirmación, pregunta, o lead reafirmó asistencia. NO TOCAR NADA.
+- "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, o el
+  lead ya reagendó vía el enlace. NO TOCAR NADA.
 - "cancel_with_followup": el lead pide cancelar TODAS sus llamadas futuras (o ya aceptó
-  reagendar tras un [ENVIÓ ENLACE DE REAGENDAR]) y se le debe poner en seguimiento automático.
+  reagendar tras un [ENVIÓ ENLACE DE REAGENDAR] sin haber creado nueva cita) y se le debe
+  poner en seguimiento automático.
 - "cancel_no_followup": cancelación DURA ("ya no me interesa", "voy con otro entrenador",
   "borra mis datos"). Cancela TODAS las llamadas y NO seguimiento.
 - "cancel_partial": el lead pide cancelar SOLO ALGUNAS llamadas concretas, no todas.
@@ -143,13 +185,12 @@ INTENTS POSIBLES:
 
 REGLAS GENERALES:
 - Mejor "no_action" si tienes la más mínima duda.
-- Confirmaciones cortas ("vale", "ok", "genial", "perfecto", "listo") por sí solas → no_action,
-  EXCEPTO cuando vienen justo después de un [ENVIÓ ENLACE DE REAGENDAR] del Coach Y el lead las
-  acompaña con palabras de aceptación ("gracias", "dámelo", "lo cambio").
+- Confirmaciones cortas ("vale", "ok", "genial", "perfecto", "listo") por sí solas → no_action.
 - "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista que te paso. Si el lead
-  no especifica cuál, asume TODAS (cancel_with_followup o cancel_no_followup).
+  no especifica cuál, asume TODAS — EXCEPTO las marcadas como CREADA POST-ENLACE.
 - Si solo hay 1 cita y dice "cancelélalo" sin especificar → cancel_with_followup con esa cita.
-- Si hay 2+ citas y dice "cancel ambas" o no especifica → cancel_with_followup con TODAS.
+- Si hay 2+ citas y dice "cancel ambas" o no especifica → cancel_with_followup con TODAS las
+  pre-enlace (excluye las post-enlace).
 - Si hay 2+ y dice "cancel solo la del martes" → cancel_partial con SOLO esa.
 - Para el delay del seguimiento (cancel_with_followup):
   * 1 día (default): cancelación sin contexto especial
@@ -211,33 +252,23 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
 
   if (last && isNonAudioMediaOnly(last) && !String(last.body || '').trim()) {
     const cls = classifyAttachments(last);
-    logger.info('non-audio media on last inbound → no_action', {
-      messageId: last.id || last._id || null, attachments: cls,
-    });
     return {
       ok: true, bypass: 'non-audio-media',
-      decision: {
-        intent: 'no_action', confidence: 1.0,
-        appointment_ids_to_noshow: [], followup_delay_days: null,
-        reasoning: 'Last inbound is media (image/document) with no text — nothing to classify.',
-      },
+      decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
+                  followup_delay_days: null,
+                  reasoning: 'Last inbound is media (image/document) with no text — nothing to classify.' },
       transcriptionStats, attachmentBreakdown: cls, rescheduleLinkSent, leadAfterLink,
     };
   }
 
   if (last && isAudioMessage(last) && !String(last.body || '').trim()) {
-    logger.info('audio detected on last inbound (untranscribed) → audio_needs_review', {
-      messageId: last.id || last._id || null, transcription: transcriptionStats,
-    });
     return {
       ok: true, bypass: 'audio-detected',
-      decision: {
-        intent: 'audio_needs_review', confidence: 1.0,
-        appointment_ids_to_noshow: [], followup_delay_days: null,
-        reasoning: openaiApiKey
-          ? 'Last inbound is a voice/video note and Whisper transcription failed.'
-          : 'Last inbound is a voice note. Configure OPENAI_API_KEY to auto-transcribe.',
-      },
+      decision: { intent: 'audio_needs_review', confidence: 1.0,
+                  appointment_ids_to_noshow: [], followup_delay_days: null,
+                  reasoning: openaiApiKey
+                    ? 'Last inbound is a voice/video note and Whisper transcription failed.'
+                    : 'Last inbound is a voice note. Configure OPENAI_API_KEY to auto-transcribe.' },
       transcriptionStats, rescheduleLinkSent, leadAfterLink,
     };
   }
@@ -262,7 +293,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
 
   const lookback = DEFAULT_MESSAGES_LOOKBACK;
   const transcript = formatMessagesForPrompt(messages, lookback);
-  const aptsBlock = formatAppointmentsForPrompt(appointments);
+  const aptsBlock = formatAppointmentsForPrompt(appointments, messages);
   const userMessage =
     `LLAMADAS FUTURAS ACTIVAS DEL LEAD:\n${aptsBlock}\n\n` +
     `CONVERSACIÓN (de más antiguo a más reciente):\n\n${transcript}\n\n` +
@@ -282,17 +313,12 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
 
   const { accepted, rejected } = validateAppointmentIds(parsed.appointment_ids_to_noshow, appointments);
   parsed.appointment_ids_to_noshow = accepted;
-  if (rejected.length > 0) {
-    logger.warn('claude returned invalid appointment ids — rejected', { rejected });
-  }
+  if (rejected.length > 0) logger.warn('claude returned invalid appointment ids', { rejected });
 
   const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
-  // Elevated threshold ONLY when the lead replied AFTER the link (true ambiguity).
   const effectiveThreshold = threshold ?? (leadAfterLink ? POST_LINK_AMBIGUOUS_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
   if (parsed.intent !== 'no_action' && conf < effectiveThreshold) {
-    logger.info('classification below threshold → no_action', {
-      confidence: conf, threshold: effectiveThreshold, leadAfterLink,
-    });
+    logger.info('classification below threshold → no_action', { confidence: conf, threshold: effectiveThreshold, leadAfterLink });
     return {
       ok: true, bypass: 'low-confidence',
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
@@ -303,7 +329,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   }
 
   if (parsed.intent !== 'no_action' && parsed.appointment_ids_to_noshow.length === 0) {
-    logger.warn('cancel intent but no valid appointment ids → demoting to no_action', { parsed });
+    logger.warn('cancel intent but no valid appointment ids → no_action', { parsed });
     return {
       ok: true, bypass: 'no-valid-ids',
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
