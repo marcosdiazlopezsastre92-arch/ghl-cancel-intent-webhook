@@ -17,13 +17,19 @@ function mapDelayToOption(days) {
   return CUSTOM_FIELDS.FOLLOWUP_DELAY.options[days] || null;
 }
 
-async function setContactCustomField({ authorization, contactId, fieldId, value }) {
+// Sets one or more custom fields on a contact in a single PUT, safely
+// (preserves all existing customFields). Tries 3 body shapes for compatibility.
+async function setContactCustomFields({ authorization, contactId, fields }) {
+  // fields = [{ id, value }, ...]
   const cur = await getContact({ authorization, contactId });
   if (!cur.ok) return { ok: false, stage: 'get-contact', errors: cur.errors };
   const contact = cur.contact || {};
   const existing = Array.isArray(contact.customFields) ? contact.customFields : [];
-  const merged = existing.filter((cf) => (cf.id || cf.field_id) !== fieldId);
-  merged.push({ id: fieldId, value });
+
+  // Merge: replace existing entries for the same ids, then append the new ones.
+  const targetIds = new Set(fields.map((f) => f.id));
+  const merged = existing.filter((cf) => !targetIds.has(cf.id || cf.field_id));
+  for (const f of fields) merged.push({ id: f.id, value: f.value });
 
   const shape1 = await updateContact({ authorization, contactId, body: { customFields: merged } });
   if (shape1.ok) return { ok: true, shape: 'customFields[id,value]', response: shape1.response };
@@ -81,7 +87,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
     return { status: 200, json: { ok: true, decision: { intent: 'no_action', reasoning: 'No messages in conversation' }, warnings: ['empty-conversation'] } };
   }
 
-  // 3) Find ALL active future appointments BEFORE classification — we pass them to Claude.
+  // 3) Find ALL active future appointments BEFORE classification.
   const appRes = await findAllActiveFutureAppointmentsForContact({
     authorization, locationId: LOCATION_ID, contactId,
   });
@@ -90,7 +96,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
   }
   const appointments = appRes.appointments || [];
 
-  // 4) Classify with Claude (whitelist + threshold + ID validation inside).
+  // 4) Classify with Claude.
   const cls = await classify({ messages: msgsRes.messages, appointments, apiKey });
   if (!cls.ok) {
     return { status: 502, json: { ok: false, error: 'classification-failed', detail: cls } };
@@ -131,32 +137,54 @@ async function handleCancelIntent({ authorization, body, query, apiKey }) {
     }
   }
 
-  // 5b) Set the right custom field — only for FULL cancellations (not partial).
-  let fieldUpdate = null;
+  // 5b) Decide which custom fields to set.
+  // Rules:
+  //   cancel_with_followup → FOLLOWUP_DELAY + REMOVE_FROM_AUTO (full cancellation, schedule re-engagement, stop reminders)
+  //   cancel_no_followup   → REMOVE_FROM_AUTO only (full hard cancellation, no re-engagement)
+  //   cancel_partial       → none (contact still has other active calls; do not silence reminders for them)
+  const fieldsToSet = [];
+
   if (decision.intent === 'cancel_with_followup') {
     const optionLabel = mapDelayToOption(decision.followup_delay_days || 1);
     if (!optionLabel) {
       errors.push({ type: 'unknown-delay', received: decision.followup_delay_days });
     } else {
-      fieldUpdate = { fieldId: CUSTOM_FIELDS.FOLLOWUP_DELAY.id, value: optionLabel, label: 'FOLLOWUP_DELAY' };
+      fieldsToSet.push({
+        fieldId: CUSTOM_FIELDS.FOLLOWUP_DELAY.id,
+        value: optionLabel,
+        label: 'FOLLOWUP_DELAY',
+      });
     }
+    fieldsToSet.push({
+      fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
+      value: CUSTOM_FIELDS.REMOVE_FROM_AUTO.options.yes,
+      label: 'REMOVE_FROM_AUTO',
+    });
   } else if (decision.intent === 'cancel_no_followup') {
-    fieldUpdate = { fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
-      value: CUSTOM_FIELDS.REMOVE_FROM_AUTO.options.yes, label: 'REMOVE_FROM_AUTO' };
+    fieldsToSet.push({
+      fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
+      value: CUSTOM_FIELDS.REMOVE_FROM_AUTO.options.yes,
+      label: 'REMOVE_FROM_AUTO',
+    });
   }
-  // cancel_partial → NO field update (contact still has other calls).
+  // cancel_partial → fieldsToSet stays empty.
 
-  if (fieldUpdate) {
+  if (fieldsToSet.length > 0) {
     if (dryRun) {
-      actionsTaken.push({ type: 'set-custom-field', dryRun: true, ...fieldUpdate });
+      for (const f of fieldsToSet) {
+        actionsTaken.push({ type: 'set-custom-field', dryRun: true, ...f });
+      }
     } else {
-      const cfRes = await setContactCustomField({
-        authorization, contactId, fieldId: fieldUpdate.fieldId, value: fieldUpdate.value,
+      const cfRes = await setContactCustomFields({
+        authorization, contactId,
+        fields: fieldsToSet.map((f) => ({ id: f.fieldId, value: f.value })),
       });
       if (cfRes.ok) {
-        actionsTaken.push({ type: 'set-custom-field', shape: cfRes.shape, ...fieldUpdate });
+        for (const f of fieldsToSet) {
+          actionsTaken.push({ type: 'set-custom-field', shape: cfRes.shape, ...f });
+        }
       } else {
-        errors.push({ type: 'set-custom-field', error: 'all-shapes-failed', detail: cfRes });
+        errors.push({ type: 'set-custom-fields', error: 'all-shapes-failed', detail: cfRes });
       }
     }
   }
