@@ -7,7 +7,7 @@ const {
   DEFAULT_MESSAGES_LOOKBACK,
 } = require('./config');
 const logger = require('./logger');
-const { isAudioMessage } = require('./classifierAudio');
+const { isAudioMessage, isNonAudioMediaOnly, classifyAttachments } = require('./classifierAudio');
 const { transcribeAudiosInPlace } = require('./transcribe');
 
 const BENIGN_PHRASES = new Set([
@@ -37,9 +37,12 @@ function lastInboundMessage(messages) {
 function isLastInboundBenign(messages) {
   const last = lastInboundMessage(messages);
   if (!last) return false;
+  // Audio (or video that may carry audio) is never benign — must be transcribed or flagged.
   if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
+  // Pure non-audio media (image/pdf) with empty body is handled separately, NOT benign.
+  if (isNonAudioMediaOnly(last) && !String(last.body || '').trim()) return false;
   const norm = normalize(last.body || last.message || last.text || '');
-  if (!norm) return true;
+  if (!norm) return true; // truly empty (sticker only, etc.)
   const words = norm.split(' ');
   if (words.length > 4) return false;
   return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
@@ -58,6 +61,7 @@ function formatMessagesForPrompt(messages, lookback) {
     const speaker = dir === 'inbound' ? 'Lead' : 'Coach';
     let text = String(m.body || m.message || m.text || '').trim();
     if (!text && isAudioMessage(m)) text = '[mensaje de voz — sin transcribir]';
+    if (!text && isNonAudioMediaOnly(m)) text = '[envió imagen/documento — sin texto]';
     return `[${ts}] ${speaker}: ${text}`;
   }).join('\n');
 }
@@ -74,11 +78,10 @@ function formatAppointmentsForPrompt(appointments) {
 }
 
 const SYSTEM_PROMPT = `Eres un clasificador de intención de cancelación de llamadas para una agencia de coaching de fitness en España.
-Lees una conversación de WhatsApp/SMS entre el coach y un lead, junto con la lista de
+Lees una conversación de WhatsApp/Instagram/SMS entre el coach y un lead, junto con la lista de
 llamadas futuras activas que tiene ese lead. Decides si en su ÚLTIMO mensaje está pidiendo
 cancelar/reagendar alguna(s) o ninguna llamada. Algunos mensajes pueden venir prefijados
-como [AUDIO TRANSCRITO] — son notas de voz transcritas automáticamente con Whisper, trátalas
-igual que cualquier otro mensaje de texto.
+como [AUDIO TRANSCRITO] — son notas de voz transcritas con Whisper, trátalas igual que texto.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta. NO TOCAR NADA.
@@ -136,7 +139,7 @@ function validateAppointmentIds(claudeIds, activeAppointments) {
 }
 
 async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAuthorization, model, threshold }) {
-  // 0a) Try to transcribe inbound audios in-place if Whisper is available.
+  // 0a) Try to transcribe inbound audio/video in-place if Whisper is available.
   let transcriptionStats = null;
   if (openaiApiKey) {
     try {
@@ -149,52 +152,66 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     }
   }
 
-  // 0b) AUDIO bypass — only if last inbound is still untranscribed audio.
   const last = lastInboundMessage(messages);
+
+  // 0b) NON-AUDIO MEDIA bypass — last inbound is image/PDF/document with no text.
+  if (last && isNonAudioMediaOnly(last) && !String(last.body || '').trim()) {
+    const cls = classifyAttachments(last);
+    logger.info('non-audio media on last inbound → no_action', {
+      messageId: last.id || last._id || null, attachments: cls,
+    });
+    return {
+      ok: true,
+      bypass: 'non-audio-media',
+      decision: {
+        intent: 'no_action',
+        confidence: 1.0,
+        appointment_ids_to_noshow: [],
+        followup_delay_days: null,
+        reasoning: `Last inbound is media (image/document) with no text — nothing to classify.`,
+      },
+      transcriptionStats,
+      attachmentBreakdown: cls,
+    };
+  }
+
+  // 0c) AUDIO bypass — only if last inbound is still untranscribed audio/video.
   if (last && isAudioMessage(last) && !String(last.body || '').trim()) {
-    logger.info('audio detected on last inbound (untranscribed) → skipping classification', {
-      messageId: last.id || last._id || null,
-      transcription: transcriptionStats,
+    logger.info('audio detected on last inbound (untranscribed) → audio_needs_review', {
+      messageId: last.id || last._id || null, transcription: transcriptionStats,
     });
     return {
       ok: true,
       bypass: 'audio-detected',
       decision: {
-        intent: 'audio_needs_review',
-        confidence: 1.0,
-        appointment_ids_to_noshow: [],
-        followup_delay_days: null,
+        intent: 'audio_needs_review', confidence: 1.0,
+        appointment_ids_to_noshow: [], followup_delay_days: null,
         reasoning: openaiApiKey
-          ? 'Last inbound is a voice note and Whisper transcription failed.'
+          ? 'Last inbound is a voice/video note and Whisper transcription failed.'
           : 'Last inbound is a voice note. Configure OPENAI_API_KEY to auto-transcribe.',
       },
       transcriptionStats,
     };
   }
 
-  // 1) If no active appointments, no point in classifying.
   if (!appointments || appointments.length === 0) {
     return {
-      ok: true,
-      bypass: 'no-appointments',
+      ok: true, bypass: 'no-appointments',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Contact has no active future appointments' },
       transcriptionStats,
     };
   }
 
-  // 2) Whitelist short-circuit.
   if (isLastInboundBenign(messages)) {
     return {
-      ok: true,
-      bypass: 'whitelist',
+      ok: true, bypass: 'whitelist',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
       transcriptionStats,
     };
   }
 
-  // 3) Build prompt.
   const lookback = DEFAULT_MESSAGES_LOOKBACK;
   const transcript = formatMessagesForPrompt(messages, lookback);
   const aptsBlock = formatAppointmentsForPrompt(appointments);
@@ -203,12 +220,9 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     `CONVERSACIÓN (de más antiguo a más reciente):\n\n${transcript}\n\n` +
     `Devuelve sólo el JSON especificado.`;
 
-  // 4) Call Claude.
   const claudeRes = await callClaude({
-    apiKey,
-    model: model || DEFAULT_CLAUDE_MODEL,
-    system: SYSTEM_PROMPT,
-    userMessage,
+    apiKey, model: model || DEFAULT_CLAUDE_MODEL,
+    system: SYSTEM_PROMPT, userMessage,
   });
   if (!claudeRes.ok) return { ok: false, error: 'claude-call-failed', detail: claudeRes, transcriptionStats };
 
@@ -229,26 +243,22 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   if (parsed.intent !== 'no_action' && conf < thr) {
     logger.info('classification below threshold → no_action', { confidence: conf, threshold: thr });
     return {
-      ok: true,
-      bypass: 'low-confidence',
+      ok: true, bypass: 'low-confidence',
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Below threshold (${conf} < ${thr}). Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed,
-      transcriptionStats,
+      claudeRaw: parsed, transcriptionStats,
     };
   }
 
   if (parsed.intent !== 'no_action' && parsed.appointment_ids_to_noshow.length === 0) {
     logger.warn('cancel intent but no valid appointment ids → demoting to no_action', { parsed });
     return {
-      ok: true,
-      bypass: 'no-valid-ids',
+      ok: true, bypass: 'no-valid-ids',
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Claude said ${parsed.intent} but listed no valid IDs. Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed,
-      transcriptionStats,
+      claudeRaw: parsed, transcriptionStats,
     };
   }
 
