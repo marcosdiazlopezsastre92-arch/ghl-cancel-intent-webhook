@@ -9,6 +9,7 @@ const {
 const logger = require('./logger');
 const { isAudioMessage, isNonAudioMediaOnly, classifyAttachments } = require('./classifierAudio');
 const { transcribeAudiosInPlace } = require('./transcribe');
+const { messageContainsRescheduleLink, hasRecentRescheduleLink } = require('./rescheduleDetector');
 
 const BENIGN_PHRASES = new Set([
   'vale', 'ok', 'okay', 'okey', 'oki', 'k', 'va', 'sip', 'si', 'sí', 'sii', 'siii',
@@ -37,12 +38,13 @@ function lastInboundMessage(messages) {
 function isLastInboundBenign(messages) {
   const last = lastInboundMessage(messages);
   if (!last) return false;
-  // Audio (or video that may carry audio) is never benign — must be transcribed or flagged.
   if (isAudioMessage(last) && !String(last.body || '').trim()) return false;
-  // Pure non-audio media (image/pdf) with empty body is handled separately, NOT benign.
   if (isNonAudioMediaOnly(last) && !String(last.body || '').trim()) return false;
+  // CRITICAL: if a reschedule link was sent recently, never short-circuit.
+  // Even "vale" / "gracias" might be the lead's acceptance of the reschedule.
+  if (hasRecentRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK)) return false;
   const norm = normalize(last.body || last.message || last.text || '');
-  if (!norm) return true; // truly empty (sticker only, etc.)
+  if (!norm) return true;
   const words = norm.split(' ');
   if (words.length > 4) return false;
   return BENIGN_PHRASES.has(norm) || words.every((w) => BENIGN_PHRASES.has(w));
@@ -58,7 +60,11 @@ function formatMessagesForPrompt(messages, lookback) {
   return recent.map((m) => {
     const ts = m.dateAdded || m.dateCreated || m.createdAt || '';
     const dir = (m.direction || '').toLowerCase();
-    const speaker = dir === 'inbound' ? 'Lead' : 'Coach';
+    let speaker = dir === 'inbound' ? 'Lead' : 'Coach';
+    // Prefix Coach messages that sent the reschedule link.
+    if (dir === 'outbound' && messageContainsRescheduleLink(m)) {
+      speaker = 'Coach [ENVIÓ ENLACE DE REAGENDAR]';
+    }
     let text = String(m.body || m.message || m.text || '').trim();
     if (!text && isAudioMessage(m)) text = '[mensaje de voz — sin transcribir]';
     if (!text && isNonAudioMediaOnly(m)) text = '[envió imagen/documento — sin texto]';
@@ -79,22 +85,37 @@ function formatAppointmentsForPrompt(appointments) {
 
 const SYSTEM_PROMPT = `Eres un clasificador de intención de cancelación de llamadas para una agencia de coaching de fitness en España.
 Lees una conversación de WhatsApp/Instagram/SMS entre el coach y un lead, junto con la lista de
-llamadas futuras activas que tiene ese lead. Decides si en su ÚLTIMO mensaje está pidiendo
-cancelar/reagendar alguna(s) o ninguna llamada. Algunos mensajes pueden venir prefijados
-como [AUDIO TRANSCRITO] — son notas de voz transcritas con Whisper, trátalas igual que texto.
+llamadas futuras activas que tiene ese lead. Decides si en el contexto reciente de la conversación
+el lead está pidiendo (implícita o explícitamente) cancelar/reagendar alguna(s) o ninguna llamada.
+
+CONTEXTO IMPORTANTE SOBRE EL "COACH":
+Las respuestas del Coach pueden ser de un humano O de una IA automatizada de la agencia. La IA,
+cuando detecta señales de duda o cancelación del lead, suele responder ofreciendo el ENLACE DE
+REAGENDAR. Si en el historial ves un mensaje del Coach prefijado con el marcador
+[ENVIÓ ENLACE DE REAGENDAR], significa que la IA ya intervino y mandó el enlace para mover la cita.
+
+REGLAS ESPECIALES CUANDO HAY [ENVIÓ ENLACE DE REAGENDAR] en el historial reciente:
+- Si el lead aceptó CLARAMENTE el reagendado después del link ("vale gracias", "perfecto",
+  "dámelo", "miro y reagendo", "genial, lo cambio") → cancel_with_followup.
+- Si el lead RECHAZÓ explícitamente el reagendado después del link ("no no, mejor lo dejo",
+  "déjalo, sí voy", "olvídalo, iré") → no_action.
+- Si el lead respondió ambiguamente o no respondió ("déjame pensarlo", "luego te digo",
+  o silencio total) → no_action (conservador).
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta. NO TOCAR NADA.
-- "cancel_with_followup": el lead pide cancelar TODAS sus llamadas futuras y se le debe poner
-  en seguimiento automático para que la IA reagende.
+- "cancel_with_followup": el lead pide cancelar TODAS sus llamadas futuras (o ya aceptó
+  reagendar tras un [ENVIÓ ENLACE DE REAGENDAR]) y se le debe poner en seguimiento automático.
 - "cancel_no_followup": cancelación DURA ("ya no me interesa", "voy con otro entrenador",
   "borra mis datos"). Cancela TODAS las llamadas y NO seguimiento.
 - "cancel_partial": el lead pide cancelar SOLO ALGUNAS llamadas concretas, no todas.
   No se pone en seguimiento porque aún tiene otras llamadas pendientes.
 
-REGLAS:
+REGLAS GENERALES:
 - Mejor "no_action" si tienes la más mínima duda.
-- Confirmaciones cortas ("vale", "ok", "genial", "perfecto", "listo") → SIEMPRE no_action.
+- Confirmaciones cortas ("vale", "ok", "genial", "perfecto", "listo") por sí solas → no_action,
+  EXCEPTO cuando vienen justo después de un [ENVIÓ ENLACE DE REAGENDAR] del Coach (entonces son
+  aceptación del reagendado → cancel_with_followup).
 - "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista que te paso. Si el lead
   no especifica cuál, asume TODAS (cancel_with_followup o cancel_no_followup).
 - Si solo hay 1 cita y dice "cancelélalo" sin especificar → cancel_with_followup con esa cita.
@@ -139,7 +160,6 @@ function validateAppointmentIds(claudeIds, activeAppointments) {
 }
 
 async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAuthorization, model, threshold }) {
-  // 0a) Try to transcribe inbound audio/video in-place if Whisper is available.
   let transcriptionStats = null;
   if (openaiApiKey) {
     try {
@@ -153,36 +173,33 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   }
 
   const last = lastInboundMessage(messages);
+  const rescheduleLinkSent = hasRecentRescheduleLink(messages, DEFAULT_MESSAGES_LOOKBACK);
+  if (rescheduleLinkSent) {
+    logger.info('reschedule link detected in recent context');
+  }
 
-  // 0b) NON-AUDIO MEDIA bypass — last inbound is image/PDF/document with no text.
   if (last && isNonAudioMediaOnly(last) && !String(last.body || '').trim()) {
     const cls = classifyAttachments(last);
     logger.info('non-audio media on last inbound → no_action', {
       messageId: last.id || last._id || null, attachments: cls,
     });
     return {
-      ok: true,
-      bypass: 'non-audio-media',
+      ok: true, bypass: 'non-audio-media',
       decision: {
-        intent: 'no_action',
-        confidence: 1.0,
-        appointment_ids_to_noshow: [],
-        followup_delay_days: null,
-        reasoning: `Last inbound is media (image/document) with no text — nothing to classify.`,
+        intent: 'no_action', confidence: 1.0,
+        appointment_ids_to_noshow: [], followup_delay_days: null,
+        reasoning: 'Last inbound is media (image/document) with no text — nothing to classify.',
       },
-      transcriptionStats,
-      attachmentBreakdown: cls,
+      transcriptionStats, attachmentBreakdown: cls, rescheduleLinkSent,
     };
   }
 
-  // 0c) AUDIO bypass — only if last inbound is still untranscribed audio/video.
   if (last && isAudioMessage(last) && !String(last.body || '').trim()) {
     logger.info('audio detected on last inbound (untranscribed) → audio_needs_review', {
       messageId: last.id || last._id || null, transcription: transcriptionStats,
     });
     return {
-      ok: true,
-      bypass: 'audio-detected',
+      ok: true, bypass: 'audio-detected',
       decision: {
         intent: 'audio_needs_review', confidence: 1.0,
         appointment_ids_to_noshow: [], followup_delay_days: null,
@@ -190,7 +207,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           ? 'Last inbound is a voice/video note and Whisper transcription failed.'
           : 'Last inbound is a voice note. Configure OPENAI_API_KEY to auto-transcribe.',
       },
-      transcriptionStats,
+      transcriptionStats, rescheduleLinkSent,
     };
   }
 
@@ -199,16 +216,17 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       ok: true, bypass: 'no-appointments',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Contact has no active future appointments' },
-      transcriptionStats,
+      transcriptionStats, rescheduleLinkSent,
     };
   }
 
+  // The whitelist already accounts for rescheduleLinkSent (returns false in that case).
   if (isLastInboundBenign(messages)) {
     return {
       ok: true, bypass: 'whitelist',
       decision: { intent: 'no_action', confidence: 1.0, appointment_ids_to_noshow: [],
                   followup_delay_days: null, reasoning: 'Whitelisted benign reply' },
-      transcriptionStats,
+      transcriptionStats, rescheduleLinkSent,
     };
   }
 
@@ -247,7 +265,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Below threshold (${conf} < ${thr}). Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed, transcriptionStats,
+      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent,
     };
   }
 
@@ -258,11 +276,11 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Claude said ${parsed.intent} but listed no valid IDs. Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed, transcriptionStats,
+      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent,
     };
   }
 
-  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats };
+  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats, rescheduleLinkSent };
 }
 
 module.exports = {
