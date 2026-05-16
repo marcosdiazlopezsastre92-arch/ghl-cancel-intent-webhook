@@ -179,6 +179,46 @@ los retrasos sin necesidad de tocar la cita en el sistema.
 Si el mensaje mezcla retraso + cancelación clara ("llego tarde y mejor cancela")
 → prevalece la cancelación → cancel_with_followup.
 
+EXCEPCIÓN — CANCELACIONES CONDICIONALES NO SON CANCELACIONES:
+Si el lead menciona cancelar pero como CONDICIONAL (no como decisión tomada), trata
+como no_action. Mientras la condición no se cumpla, no hay cancelación real — el coach
+humano gestiona la negociación.
+
+NO ES CANCELACIÓN (no_action) — son condicionales tipo "si X entonces cancelo":
+- "si es muy caro no voy a hacer la call"
+- "si está fuera de mi presupuesto cancelo"
+- "si no me convence, cancelo"
+- "si no me das descuento, no voy"
+- "depende del precio si cancelo o no"
+- "podría cancelar si X"
+
+La estructura clave es "SI X ENTONCES Y" donde Y es cancelar. Mientras la condición
+no se materialice (el lead no diga después "es caro, cancela definitivo"), trata como
+no_action — el lead está negociando o preguntando, no cancelando.
+
+SÍ ES CANCELACIÓN (cancel_with_followup) — decisión tomada, sin "si":
+- "cancela porfa" (decisión directa)
+- "no puedo ir" (afirmación)
+- "no asistiré" (decisión tomada)
+
+EXCEPCIÓN — PROBLEMAS TÉCNICOS NO SON CANCELACIONES:
+Si el lead reporta problemas técnicos para conectarse a la llamada (no le funciona
+Zoom/Meet, no le carga el link, problemas con audio/cámara, no entra a la sala),
+trata como no_action. El coach humano gestiona el soporte técnico.
+
+NO ES CANCELACIÓN (no_action) — el lead QUIERE asistir, solo tiene problemas técnicos:
+- "no me funciona Zoom"
+- "no puedo entrar, dame otro link?"
+- "no me carga la cámara"
+- "no me entra al meet, ayuda"
+- "llevo 10 min intentando entrar, no me deja"
+- "se me ha colgado el ordenador"
+- "no me sale el link de la call"
+- "no me deja entrar, sigues conectado?"
+- "Zoom me pide actualizar, dame un min"
+
+Estos NO son cancelación — son peticiones de ayuda técnica. El lead intenta asistir.
+
 DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
 cancel_with_followup es el DEFAULT para CUALQUIER cancelación. Aplica cuando el lead simplemente
@@ -208,7 +248,8 @@ tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
   silencio post-link, lead ya reagendó (con marcador post-enlace), ajuste menor de hora
-  del mismo día, o aviso de retraso sin cancelación clara.
+  del mismo día, aviso de retraso sin cancelación clara, cancelación condicional ("si X entonces
+  cancelo"), o problema técnico de conexión.
 - "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
   POST-ENLACE), o pide reagendar a otro día (incluso si dice que ya lo hizo, mientras no haya
   cita post-enlace en la lista) y se le debe poner en seguimiento automático. ES EL DEFAULT
