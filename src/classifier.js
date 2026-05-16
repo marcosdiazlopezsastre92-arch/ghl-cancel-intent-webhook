@@ -92,6 +92,26 @@ Lees una conversación de WhatsApp/Instagram/SMS entre el coach y un lead, junto
 llamadas futuras activas que tiene ese lead. Decides si en el contexto reciente de la conversación
 el lead está pidiendo (implícita o explícitamente) cancelar/reagendar alguna(s) o ninguna llamada.
 
+REGLA CRÍTICA #1 — LAS PALABRAS DEL LEAD NUNCA SON PRUEBA DE REAGENDADO:
+Si el lead expresa CUALQUIER intención de reagendar/cambiar la llamada — preguntando
+("podemos cambiarla?", "podemos pasar al jueves?", "me viene mejor la semana que viene",
+"me pasas a otra fecha?"), prometiendo ("lo cambio ahora", "perfecto, reagendo",
+"miro y reagendo"), o incluso AFIRMANDO que ya lo hizo ("ya cambié", "ya reagendé",
+"mil gracias, reagendo ahora", "ya cambio la cita, gracias", "perfecto, cambio para
+mañana") — SIEMPRE devuelve cancel_with_followup, A MENOS QUE en la lista de
+"LLAMADAS FUTURAS ACTIVAS" veas explícitamente una cita con el marcador
+"CREADA Xmin DESPUÉS del envio del enlace de reagendar".
+
+Solo la presencia física del marcador POST-ENLACE en la lista cuenta como prueba real
+de reagendado. Las palabras del lead NUNCA son prueba suficiente.
+
+Razón del sistema: si la cita post-enlace no existe físicamente, no sabemos si el lead
+realmente la moverá o se olvidará. Hay que (a) marcar la actual como no-show para que
+el coach no espere al lead, Y (b) activar seguimiento por si el lead olvida reagendar.
+
+Esto aplica TANTO si el Coach envió enlace previamente como si no. Es la regla más
+importante del clasificador. Solo la cita POST-ENLACE en la lista lo cambia.
+
 CONTEXTO DEL "COACH":
 Las respuestas del Coach pueden ser de un humano O de una IA automatizada. Cuando la IA detecta
 señales de cancelación/duda, suele responder enviando el ENLACE DE REAGENDAR. Si en el historial
@@ -116,6 +136,22 @@ REGLAS POST-ENLACE (cuando el Coach envió el [ENVIÓ ENLACE DE REAGENDAR]):
   más, silencio total) → no_action (NUNCA asumir aceptación por silencio).
 - Lead YA había cancelado claramente ANTES del link y no respondió al link → cancel_with_followup.
 
+EXCEPCIÓN — AJUSTES MENORES DE HORA DEL MISMO DÍA:
+Si el lead solo pide ajustar la HORA de la llamada SIN cambiar el día ("podemos a las 18
+en vez de 16?", "30 min más tarde si te va bien", "puedo a las 20 mejor?", "a otra hora
+del mismo día?", "podemos atrasar 15min?", "acomódame mejor a las 19", "puedo hoy más
+tarde", "mejor vamos un par de horas después", "a la tarde sí pero a esa hora no") →
+trata como no_action. El coach humano gestionará el ajuste menor sin necesidad de mover
+la cita en el sistema.
+
+DIFERENCIAR cuidadosamente:
+- "podemos a las 18 hoy en vez de 16?" → no_action (cambio de hora mismo día)
+- "podemos hacerla el jueves?" → cancel_with_followup (cambio de día = reschedule)
+- "puedes hoy más tarde?" → no_action (mismo día)
+- "puedo más tarde de esta semana, hoy no" → cancel_with_followup (otro día)
+- "mejor a la noche que a la tarde?" → no_action (mismo día, solo cambia el rato)
+- "mejor en 2 días" → cancel_with_followup (otro día)
+
 DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
 cancel_with_followup es el DEFAULT para CUALQUIER cancelación. Aplica cuando el lead simplemente
@@ -129,6 +165,9 @@ señales muy fuertes y explícitas como:
   - "voy a tirar con otro entrenador" / "voy con otro"
   - "borra mis datos" / "quítame de tu lista" / "no me contactes más"
   - "déjame en paz" / "no me molestes más"
+  - "paso completamente del tema" / "paso del tema, gracias"
+  - "no me vale la pena, gracias"
+  - "cancelo todo contigo, gracias" (cuando viene con tono de cierre/despedida)
   - Cualquier rechazo claro del programa entero, no solo de una llamada concreta.
 
 SI HAY DUDA entre with_followup y no_followup → SIEMPRE elige cancel_with_followup. Es preferible
@@ -141,14 +180,18 @@ tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
-  silencio post-link, o lead ya reagendó (con marcador post-enlace).
+  silencio post-link, lead ya reagendó (con marcador post-enlace), o ajuste menor de hora
+  del mismo día.
 - "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
-  POST-ENLACE) y se le debe poner en seguimiento automático. ES EL DEFAULT para cualquier
-  cancelación con motivos no agresivos.
+  POST-ENLACE), o pide reagendar a otro día (incluso si dice que ya lo hizo, mientras no haya
+  cita post-enlace en la lista) y se le debe poner en seguimiento automático. ES EL DEFAULT
+  para cualquier cancelación/reagendado con motivos no agresivos.
 - "cancel_no_followup": SOLO para rechazo total del programa con señales muy explícitas.
   Cancela TODAS las pre-enlace, sin seguimiento. Caso raro.
 - "cancel_partial": cancelar SOLO algunas citas concretas que el lead especificó, no todas.
-  No se pone en seguimiento porque aún tiene otras llamadas pendientes.
+  Solo se usa cuando el lead tiene MÚLTIPLES citas activas Y pide cancelar solo una/algunas
+  concretas mientras MANTIENE las demás. NO usar cancel_partial para reschedules de una sola
+  cita — eso es cancel_with_followup.
 
 REGLAS GENERALES:
 - Mejor "no_action" si tienes la más mínima duda sobre si hay cancelación.
