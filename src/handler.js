@@ -187,6 +187,8 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       label: 'REMOVE_FROM_AUTO',
     });
   }
+  // Note: cancel_partial does not set custom fields (no auto-followup), but
+  // we still add the audit tags below so Marcos can see every script action.
 
   if (fieldsToSet.length > 0) {
     if (dryRun) {
@@ -205,14 +207,17 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   }
 
   // 3) Tags.
-  // For full cancels (cancel_with_followup or cancel_no_followup) AND when we
-  // actually noshow'd at least one call: add BOTH tags in a single API call.
+  // Apply BOTH tags whenever the script actually noshow'd at least one call,
+  // regardless of which cancel-variant fired (with_followup, no_followup, or
+  // partial). This lets Marcos audit every action of the script via the GHL
+  // tag filter, and the swap-rate metric counts every cancellation the lead
+  // warned about (partial included — they did warn about that specific call).
   //   - "inv x cancelación avisada"  (swap-rate metric)
   //   - "script cancel-intent aplicado"  (monitoring filter for Marcos)
-  // cancel_partial gets NO tags (lead still has other active calls).
-  const isFullCancel = (decision.intent === 'cancel_with_followup'
-                     || decision.intent === 'cancel_no_followup');
-  const shouldAddTags = isFullCancel && targets.length > 0;
+  const isAnyCancel = (decision.intent === 'cancel_with_followup'
+                    || decision.intent === 'cancel_no_followup'
+                    || decision.intent === 'cancel_partial');
+  const shouldAddTags = isAnyCancel && targets.length > 0;
 
   if (shouldAddTags) {
     const tagsToAdd = [CANCELLATION_NOTICE_TAG.name, SCRIPT_APPLIED_TAG.name];
