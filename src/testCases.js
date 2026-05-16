@@ -1,9 +1,9 @@
 'use strict';
 
 // ============================================================
-// MEGA STRESS TEST — ~1000 cases
-// 26 categories covering normal cases + extreme edge cases
-// Each case is intentionally unique (no duplicates)
+// REGRESSION TEST SUITE — ~500 NEW cases
+// Different from previous mega suite — fresh phrasings to detect
+// any unintended regressions from the recent prompt changes.
 // ============================================================
 
 function mkTs(minsAgo) {
@@ -60,551 +60,341 @@ let counter = 0;
 const N = () => String(++counter).padStart(4, '0');
 
 // ============================================================
-// G1 — CONFIRMACIONES (50)
+// R1 — CONFIRMACIONES (30 nuevas)
 // ============================================================
-const G1 = [
-  ['vale', 'Recordatorio: mañana a las 18h'],
-  ['ok', 'Confirmado para mañana'],
-  ['perfecto', 'Mañana hablamos'],
-  ['genial!', 'Confirmada tu llamada'],
-  ['listo', 'Quedamos mañana'],
-  ['ahí estoy!', 'Llamada mañana 16h'],
-  ['nos vemos mañana', 'Confirmamos?'],
-  ['👍', 'Recordatorio de tu llamada'],
-  ['✅', 'Confirmada la cita'],
-  ['🔥', 'Te paso material'],
-  ['sip', 'Mañana a las 17'],
-  ['sí', 'Sigue en pie?'],
-  ['claro que sí', 'Confirmamos?'],
-  ['dale', 'Te paso el zoom'],
-  ['venga, hasta mañana', 'Confirmada'],
-  ['confirmado', 'Recordatorio llamada'],
-  ['anotado, gracias', 'Mañana 11h'],
-  ['recibido!', 'Link de Zoom'],
-  ['Gracias, ahí estaré conectado', 'Recordatorio'],
-  ['yes', 'See you tomorrow!'],
-  ['mil gracias, ahí estaré', 'Confirmada'],
-  ['arriba esa llamada', 'Mañana lo damos todo'],
-  ['✅✅', 'Confirmamos?'],
-  ['vamos!', 'Recordatorio'],
-  ['aquí andamos', 'Confirmada'],
-  ['oki', 'Mañana 18h'],
-  ['👌', 'Confirmada'],
-  ['💪', 'Mañana hablamos'],
-  ['hasta mañana entonces', 'Confirmada'],
-  ['allá voy', 'Llamada mañana'],
-  ['de cabeza', 'Confirmada'],
-  ['cuenta conmigo', 'Mañana 18h'],
-  ['copiado', 'Mañana hablamos'],
-  ['👍🏻', 'Recordatorio'],
-  ['100%', 'Confirmamos?'],
-  ['allí nos vemos', 'Mañana'],
-  ['todo en orden, hasta mañana', 'Confirmada'],
-  ['ok, anoto', 'Llamada mañana'],
-  ['sin problema', 'Confirmada'],
-  ['😊', 'Mañana hablamos'],
-  ['hasta ahora!', 'Llamada en 1h'],
-  ['cómo no', 'Confirmamos?'],
-  ['por supuesto, ahí estoy', 'Confirmada'],
-  ['vale vale, hasta mañana', 'Confirmada'],
-  ['confirmadísimo', 'Llamada mañana'],
-  ['venga, hablamos!', 'Confirmamos'],
-  ['hecho, allí estaré', 'Confirmada'],
-  ['🎯', 'Recordatorio'],
-  ['suena bien, hasta mañana', 'Confirmada'],
-  ['nos vemos en zoom', 'Mañana'],
+const R1 = [
+  ['todo controlado', 'Recordatorio mañana'],
+  ['lo tengo apuntado, hasta mañana', 'Mañana hablamos'],
+  ['ya tengo bloqueada la hora', 'Confirmada'],
+  ['entendido perfectamente', 'Llamada mañana 10h'],
+  ['hecho!', 'Confirmamos?'],
+  ['claro hombre, ahí estoy', 'Recordatorio'],
+  ['vamos para adelante!', 'Llamada confirmada'],
+  ['confirmadísimo total', 'Mañana hablamos'],
+  ['ya lo tengo, gracias por avisar', 'Recordatorio mañana'],
+  ['todo en regla, mañana hablamos', 'Confirmada'],
+  ['sí claro, allí estaré', 'Mañana 18h'],
+  ['ningún problema, allí me tienes', 'Confirmada'],
+  ['marcado en calendario', 'Llamada mañana'],
+  ['voy fijo, gracias', 'Confirmamos'],
+  ['no se me olvida, tranqui', 'Mañana hablamos'],
+  ['🚀🚀', 'Recordatorio'],
+  ['perfecto perfecto, hasta entonces', 'Confirmada'],
+  ['anotado en agenda, gracias', 'Mañana'],
+  ['vale, todo claro', 'Confirmamos?'],
+  ['ok, allí me ves', 'Confirmada'],
+  ['sí señor, hasta mañana', 'Mañana'],
+  ['voy a tope, listo!', 'Llamada mañana'],
+  ['allí pendiente', 'Confirmada'],
+  ['ningún drama, voy', 'Mañana'],
+  ['guay, hasta mañana', 'Confirmamos'],
+  ['fantástico, mañana hablamos!', 'Confirmada'],
+  ['ya me llega el link?', 'Mañana 18h'],
+  ['preparado y listo', 'Llamada mañana'],
+  ['nos vemos en zoom mañana', 'Confirmada'],
+  ['todo OK, hasta mañana entonces', 'Confirmamos'],
 ];
-G1.forEach(([msg, ctx]) => cases.push(leadOnly('G1-CONFIRM', `G1-${N()}`, msg, { expected: 'no_action', context: ctx })));
+R1.forEach(([msg, ctx]) => cases.push(leadOnly('R1-CONFIRM', `R1-${N()}`, msg, { expected: 'no_action', context: ctx })));
 
 // ============================================================
-// G2 — CANCELACIONES CLARAS PRE-LINK (50)
+// R2 — CANCELACIONES CLARAS (30 nuevas)
 // ============================================================
-const G2 = [
-  'Marcos, no puedo ir mañana',
-  'no podré asistir a la llamada',
-  'se me complica la llamada de mañana',
-  'mañana no me viene bien',
-  'tengo que cancelar la cita',
-  'al final no voy a poder',
-  'imposible hoy',
-  'Marcos no puedo ir a la llamada',
-  'cancela la llamada por favor',
-  'hoy no puedo, surgió un imprevisto',
-  'anula la llamada por favor',
-  'no voy a llegar a la llamada',
-  'me surgió algo en el trabajo, no puedo',
-  'no podré hacer la llamada hoy',
-  'perdona Marcos pero cancela',
-  'no voy a poder tener la llamada',
-  'me cancelo lo de hoy',
-  'no va a ser posible hoy',
-  'cancélame la cita',
-  'me es imposible acudir',
-  'finalmente no puedo asistir a la llamada',
-  'al final no llego',
-  'tengo un imprevisto, no puedo conectarme',
-  'no me va a dar tiempo a la llamada',
-  'no me cuadra la hora, tengo que cancelar',
-  'al final tengo que anular',
-  'lo siento, no voy a poder estar',
-  'me ha surgido algo y no puedo',
-  'va a ser imposible asistir hoy',
-  'tengo otra cosa que no puedo posponer',
-  'definitivamente no puedo',
-  'mejor lo anulamos por favor',
-  'no podré estar conectado a esa hora',
-  'me ha entrado un compromiso, no puedo',
-  'cancela porfa, surgió algo urgente',
-  'imposible, perdona',
-  'lo siento mucho pero no llego a la llamada',
-  'lamentablemente no voy a poder',
-  'no me será posible asistir',
-  'tengo que decir que no puedo',
-  'no soy capaz de conectarme hoy',
-  'no podré porque me ha salido algo',
-  'tengo que anular, lo siento',
-  'cancela mejor la llamada',
-  'lo siento, me quedo sin opciones, no puedo',
-  'la cancela porfa, no llego',
-  'me veo obligado a cancelar',
-  'no puedo asistir definitivo',
-  'mira, no voy a poder',
-  'siento decírtelo, no podré ir',
+const R2 = [
+  'mira, no podré ir mañana',
+  'siento decirte que no voy',
+  'me ha surgido algo, anula',
+  'tendré que cancelar mañana',
+  'no me viene bien mañana, cancela',
+  'la verdad es que no puedo acudir',
+  'al final me ha sido imposible',
+  'tengo que decir que no, perdona',
+  'no voy a poder presentarme',
+  'me tengo que retirar de mañana',
+  'no me será posible mañana',
+  'tendré que ausentarme',
+  'no podré hacer la llamada',
+  'no vamos a poder hablar mañana',
+  'tengo otra cosa, no llego',
+  'lo veo imposible, perdona',
+  'me sale algo y no puedo',
+  'tendré que escaparme, no voy',
+  'mañana definitivamente no',
+  'no la puedo mantener mañana',
+  'mira, mañana ni de coña, perdona',
+  'no me veo capaz mañana, cancela',
+  'va a ser que no, lo siento',
+  'tengo que anular, surgió algo',
+  'mañana imposible asistir',
+  'me he liado, no llego',
+  'no vamos a poder, perdóname',
+  'al final tengo que cancelar',
+  'mañana no es viable',
+  'no me sale ir mañana, cancela',
 ];
-G2.forEach(msg => cases.push(leadOnly('G2-CANCEL-CLEAR', `G2-${N()}`, msg, { expected: 'cancel_with_followup' })));
+R2.forEach(msg => cases.push(leadOnly('R2-CANCEL-CLEAR', `R2-${N()}`, msg, { expected: 'cancel_with_followup' })));
 
 // ============================================================
-// G3 — MÉDICAS (40)
+// R3 — MÉDICAS (25 nuevas)
 // ============================================================
-const G3 = [
-  ['tengo un dolor de cabeza horrible, no puedo hoy', 3],
-  ['estoy mareado, no creo que pueda', 3],
-  ['estoy resfriado, mejor lo dejamos', 3],
-  ['tengo gripe fuerte, llevo en cama 3 días', 7],
-  ['mi madre está en el hospital, no puedo hoy', 7],
-  ['mi hijo se ha puesto malo, al médico', 3],
-  ['me sale una cita médica de urgencia', 3],
-  ['tengo 38 de fiebre, no estoy fino', 3],
-  ['me operan mañana, estaré fuera 1 semana', 7],
-  ['he dado positivo en covid, me quedo en casa', 7],
-  ['no me siento bien hoy, mejor otro día', 3],
-  ['estoy recuperándome de una operación', 7],
-  ['tengo un cólico nefrítico, voy al hospital', 7],
-  ['me ha entrado una migraña tremenda', 3],
-  ['tengo a mi padre delicado, no salgo del hospital', 7],
-  ['estoy con un ataque de ansiedad fuerte', 3],
-  ['tengo pruebas médicas esta semana', 7],
-  ['llevo todo el día vomitando', 3],
-  ['estoy de baja médica una semana', 7],
-  ['me he hecho daño en la espalda', 3],
-  ['me ha dado un lumbago, no me puedo mover', 3],
-  ['tengo gastroenteritis fuerte', 3],
-  ['me ha dado alergia y estoy mal', 3],
-  ['estoy con vertigo, no puedo ni levantarme', 3],
-  ['estoy hospitalizado, sálgame en unos días', 7],
-  ['mi pareja está enferma y la cuido', 3],
-  ['urgencias me llaman para mi madre', 7],
-  ['estoy con la regla muy mala hoy', 3],
-  ['me ha dado un brote de migrañas crónicas', 7],
-  ['estoy mal del estómago, no puedo', 3],
-  ['tengo un esguince muy malo', 3],
-  ['estoy con bronquitis, no puedo hablar', 7],
-  ['tengo dolor de oídos brutal', 3],
-  ['me han ingresado de urgencia esta noche', 7],
-  ['me han operado de la rodilla esta mañana', 7],
-  ['tengo intoxicación, llevo en cama desde ayer', 3],
-  ['tengo crisis de pánico, no estoy bien', 3],
-  ['mi hija con fiebre, tengo que ir al pediatra', 3],
-  ['estoy en quimio esta semana, imposible', 7],
-  ['acabo de salir del hospital, necesito descansar', 7],
+const R3 = [
+  'me ha dado fiebre alta, no puedo',
+  'estoy con un dolor muscular brutal',
+  'me he caído y estoy lesionado',
+  'me dieron una mala noticia médica, no puedo',
+  'tengo síntomas raros, voy al médico',
+  'estoy con conjuntivitis, no puedo mirar pantallas',
+  'tengo el ojo morado, me da vergüenza por cámara',
+  'me han mandado análisis, voy ahora',
+  'me sangra mucho la nariz, no puedo',
+  'estoy en urgencias por un susto',
+  'me ha dado lipotimia, no estoy bien',
+  'me han mandado reposo absoluto',
+  'me han operado los dientes, no puedo hablar',
+  'me han dado puntos en la mano',
+  'tengo hernia, no puedo moverme',
+  'estoy en cama con fiebre',
+  'me han hecho una endoscopia hoy',
+  'tengo cataratas, voy al oculista',
+  'estoy en quimioterapia, mal día',
+  'mi padre necesita asistencia urgente',
+  'mi abuela tiene un brote, voy con ella',
+  'mi pareja con accidente, voy al hospital',
+  'urgencias con mi madre, no podré',
+  'me han operado de apendicitis',
+  'tengo cita en cardiología, no me dejan moverla',
 ];
-G3.forEach(([msg, delay]) => cases.push(leadOnly('G3-MEDICAL', `G3-${N()}`, msg, { expected: 'cancel_with_followup', delay })));
+R3.forEach(msg => cases.push(leadOnly('R3-MEDICAL', `R3-${N()}`, msg, { expected: 'cancel_with_followup' })));
 
 // ============================================================
-// G4 — VIAJES Y AGENDA (40)
+// R4 — VIAJES Y AGENDA (25 nuevas)
 // ============================================================
-const G4 = [
-  ['estoy de viaje de trabajo toda la semana', 7],
-  ['esta semana fatal, imposible', 7],
-  ['tengo un vuelo justo a esa hora', 3],
-  ['estoy en una conferencia esta semana', 7],
-  ['me voy de vacaciones, hablamos a la vuelta', 7],
-  ['tengo una boda esta semana', 7],
-  ['estoy de mudanza el finde, hablamos la próxima', 7],
-  ['estoy de viaje familiar, regreso domingo', 7],
-  ['esta semana a tope con cierre trimestre', 7],
-  ['tengo un evento ese día, no puedo', 3],
-  ['estoy en un curso intensivo toda la semana', 7],
-  ['lo del coche, voy a estar liado todo el día', 3],
-  ['estoy fuera de la ciudad hasta viernes', 7],
-  ['cumple de mi hija ese día', 3],
-  ['me pilla en el aeropuerto a esa hora', 3],
-  ['reunión con mi jefe a la misma hora', 1],
-  ['estoy fuera todo el fin de semana', 7],
-  ['me toca quedarme hasta tarde currando', 1],
-  ['tengo un funeral mañana', 7],
-  ['evento largo toda la semana, hablamos la siguiente', 7],
-  ['comunión sobrino, no puedo', 3],
-  ['tengo una entrevista de trabajo esa tarde', 1],
-  ['tengo viaje a Madrid esa mañana', 3],
-  ['me voy a Lisboa todo el finde', 7],
-  ['tengo curso del trabajo esta semana entera', 7],
-  ['exámenes finales esta semana, imposible', 7],
-  ['llevo a mi madre al notario ese día', 1],
-  ['cita en hacienda esa mañana', 1],
-  ['inauguración de mi negocio ese día', 7],
-  ['oposiciones esta semana, no puedo nada', 7],
-  ['voy a tope de obras en casa esta semana', 7],
-  ['retiro espiritual hasta el lunes', 7],
-  ['encuentro de empresa esa tarde', 1],
-  ['me voy a Asturias el finde, hablamos en una semana', 7],
-  ['feria de fitness, estoy todo el día allí', 1],
-  ['casamiento de mi prima ese sábado', 7],
-  ['ceremonia familiar ese día, imposible', 7],
-  ['tengo guardia en el trabajo toda la semana', 7],
-  ['me han llamado del trabajo para cubrir', 1],
-  ['me voy a Tenerife unos días, hablamos cuando vuelva', 7],
+const R4 = [
+  'estoy en Tarragona en evento',
+  'me toca turno de noche mañana',
+  'estoy de gira con la empresa',
+  'tengo congreso anual estos días',
+  'me caso este finde, estoy a tope',
+  'estoy con mi hermana de visita',
+  'voy a buscar a mi pareja al aeropuerto',
+  'tengo cita con cliente importante',
+  'estoy haciendo de chofer todo el día',
+  'me toca cuidar a mis sobrinos',
+  'firmamos hipoteca esa tarde',
+  'tengo curso de seguridad obligatorio',
+  'preparo viaje y estoy con maletas',
+  'voy a quedar con mi ex para hablar',
+  'tengo eventos toda la semana',
+  'estoy desplazado, en Sevilla',
+  'me toca cubrir un turno extra',
+  'tengo cursos toda la semana',
+  'estoy de jurado este semana',
+  'sesión de fotos toda la tarde',
+  'voy a buscar coche al taller',
+  'tengo entrevista médica',
+  'voy de retiro mindfulness',
+  'estoy fuera de cobertura, en la sierra',
+  'me toca asistir a un funeral',
 ];
-G4.forEach(([msg, delay]) => cases.push(leadOnly('G4-TRAVEL', `G4-${N()}`, msg, { expected: 'cancel_with_followup', delay })));
+R4.forEach(msg => cases.push(leadOnly('R4-TRAVEL', `R4-${N()}`, msg, { expected: 'cancel_with_followup' })));
 
 // ============================================================
-// G5 — HARD CANCEL / RECHAZO DEL PROGRAMA (40)
+// R5 — HARD CANCEL (25 nuevas)
 // ============================================================
-const G5 = [
-  'ya no me interesa',
-  'voy a tirar con otro entrenador',
-  'quítame de la lista por favor',
-  'no me contactes más',
-  'déjame en paz',
-  'borra mis datos por favor',
-  'la verdad perdí el interés',
-  'he decidido irme con otro coach',
-  'por favor no me molestes más',
-  'voy a tirar con entrenador presencial. Gracias',
-  'deja de mandarme mensajes',
-  'cambié de opinión, no me interesa el programa',
-  'cancela mi suscripción a tus mensajes',
-  'bórrame de tu lista de contactos',
-  'no quiero saber nada más, gracias',
-  'paso completamente del tema, gracias por entender',
-  'te agradezco todo pero no me interesa, prefiero seguir solo',
-  'voy a empezar con otra agencia, gracias',
-  'no me llames más por favor',
-  'date de baja mi número de tu sistema',
-  'no me vale la pena, gracias',
-  'cancelo todo contigo, gracias',
-  'prefiero hacerlo solo, no me contactes más',
-  'lo he pensado y no es para mí',
-  'no me convence el enfoque, no sigo',
-  'he decidido que no es lo mío',
-  'cierra mi expediente, gracias por todo',
-  'no quiero continuar, gracias',
-  'prefiero parar aquí',
-  'desisto definitivamente',
-  'voy a buscar otra cosa, gracias',
-  'me retiro del proceso, gracias',
-  'paso de seguir',
-  'me bajo definitivamente',
-  'no insistas más por favor',
-  'es definitivo, no me interesa',
-  'olvídate de mí',
-  'borra todo, no quiero seguir',
-  'voy con mi médico/nutricionista, gracias',
-  'definitivamente no es para mí',
+const R5 = [
+  'lo he meditado y no voy a seguir',
+  'al final no voy a continuar el proceso',
+  'me ha desencantado el enfoque',
+  'no quiero recibir más material vuestro',
+  'no necesito el programa, gracias',
+  'cancela todo lo mío',
+  'es muy invasivo, no quiero más',
+  'me arrepiento, dejémoslo',
+  'os agradezco pero no es lo mío',
+  'voy a recurrir a profesional sanitario, no esto',
+  'he encontrado otra solución, no continúo',
+  'voy con coach gratis, lo siento',
+  'he leído reviews malas, paso',
+  'mi familia no está de acuerdo, no sigo',
+  'la verdad es que me da pereza',
+  'no creo que sea para mí, cancela',
+  'no me genera confianza, me bajo',
+  'no me interesa hablar más, gracias',
+  'he cambiado mis prioridades',
+  'ahora no es el momento, definitivamente',
+  'no quiero más insistencias, gracias',
+  'olvídame, gracias por todo',
+  'no quiero saber más del programa',
+  'no me motiva, cancela',
+  'sois muy persistentes, paro aquí',
 ];
-G5.forEach(msg => cases.push(leadOnly('G5-HARD-CANCEL', `G5-${N()}`, msg, { expected: 'cancel_no_followup' })));
+R5.forEach(msg => cases.push(leadOnly('R5-HARD-CANCEL', `R5-${N()}`, msg, { expected: 'cancel_no_followup' })));
 
 // ============================================================
-// G6 — PREGUNTAS OPERATIVAS (50)
+// R6 — PREGUNTAS OPERATIVAS (25 nuevas)
 // ============================================================
-const G6 = [
-  'la llamada es por Zoom o Meet?',
-  'oye Marcos a qué hora era?',
-  'sigue en pie lo de hoy?',
-  'confírmame que tenemos llamada hoy porfa',
-  'me pasas el link de la llamada?',
-  'cuánto dura la llamada?',
-  'tengo que preparar algo?',
-  'me puedes llamar al móvil?',
-  'vendrá alguien más a la llamada?',
-  'se graba la llamada?',
-  'la llamada es con cámara?',
-  'me mandas un recordatorio antes?',
-  'me has mandado el zoom nuevo?',
-  'cuánta gente hay en el grupo?',
-  'puedo usar mis datos del año pasado?',
-  'qué precio tiene el programa?',
-  'cómo se hace el pago?',
-  'cuál es el formato de la llamada?',
-  'la llamada es 1 a 1 o en grupo?',
-  'con quién voy a hablar exactamente?',
-  'hay algo que tenga que mirar antes?',
-  'hasta cuándo puedo cancelar?',
-  'recibiste mi confirmación?',
-  'cuántas horas faltan para la llamada?',
-  'tengo dudas, te las pongo aquí o en la call?',
-  'puedo conectarme desde el móvil?',
-  'qué pasa si llega tarde un poco?',
-  'la llamada es en español o inglés?',
-  'voy a estar en transporte, sirve solo audio?',
-  'cuánto cuesta el programa después?',
-  'es necesario ir cámara on?',
-  'hay material previo que mirar?',
-  'puedo mandar mis preguntas antes?',
-  'cuánto tiempo lleváis con esto?',
-  'qué incluye exactamente?',
-  'puedo invitar a un amigo a la llamada?',
-  'cuántos coaches sois?',
-  'qué herramientas usáis?',
-  'hay garantía de devolución?',
-  'puedo pausarlo si me hace falta?',
-  'tienes algún caso de éxito que pueda ver?',
-  'esto vale para personas con lesiones?',
-  'hay programa específico para mujeres?',
-  'es online o presencial?',
-  'dónde firmo si me uno?',
-  'cuándo empezaríamos a entrenar si entro?',
-  'hay seguimiento personal?',
-  'puedo hablar con alguno de tus clientes?',
-  'me das tu Instagram?',
-  'qué hace que seáis diferentes a otros coaches?',
+const R6 = [
+  'me das el link otra vez?',
+  'a qué hora exacta es?',
+  'puedo cambiar a horario europeo?',
+  'me tienen que ver desde el móvil?',
+  'puedo conectarme desde el trabajo?',
+  'cuánto cobráis por hora?',
+  'tenéis método garantizado?',
+  'esto vale para principiantes?',
+  'cuál es el siguiente paso después?',
+  'tengo que pagar antes de la call?',
+  'cuántas personas más estarán?',
+  'puedo grabarla yo mi parte?',
+  'hace falta micro especial?',
+  'puedo conectarme desde inglés?',
+  'tenéis testimonios?',
+  'venís en persona o todo online?',
+  'cuándo recibo el zoom link?',
+  'hay descuento por estudiante?',
+  'puedo invitar a mi amiga después?',
+  'tenéis cláusula de cancelación?',
+  'aceptáis bizum?',
+  'hace cuánto que existís?',
+  'sois certificados profesionalmente?',
+  'qué pasa después de la primera llamada?',
+  'puedo ponerme nervioso y pausar?',
 ];
-G6.forEach(msg => cases.push(leadOnly('G6-QUESTIONS', `G6-${N()}`, msg, { expected: 'no_action' })));
+R6.forEach(msg => cases.push(leadOnly('R6-QUESTIONS', `R6-${N()}`, msg, { expected: 'no_action' })));
 
 // ============================================================
-// G7 — TIME TWEAKS (40)
+// R7 — TIME TWEAKS (20 nuevas)
 // ============================================================
-const G7 = [
-  'podemos hacerla a las 18 en vez de las 16?',
-  'puedo conectarme media hora antes?',
-  'nos vemos un rato más tarde si puedes',
-  'me viene mejor 30 min más tarde',
-  'podemos a las 18:30 en vez de a las 18?',
-  'puedo a las 20 mejor?',
-  'puedo retrasar 15 minutos?',
-  'me pasas a otra hora del mismo día?',
-  'quedamos a las 21 en vez de las 19',
-  'podemos hacer la llamada en otro rato hoy?',
-  'no puedo a las 19 pero sí a las 20',
-  'puedes hoy a las 14:30 en vez de 14?',
-  'podemos hacerla un poco más tarde?',
-  'mejor a las 20 que a las 17?',
-  'cambiamos a la noche en vez de la tarde?',
-  'podemos atrasar 15min?',
-  'a la tarde sí pero a esa hora no',
-  'puedo a las 16, 17 o 18, lo que te venga',
-  'acomódame mejor a las 19',
-  'mejor vamos un par de horas después?',
-  'puedo a las 8 en vez de a las 10?',
-  'cambio de hora dentro de hoy mismo, pa la tarde',
-  'me viene mejor a las 12 en vez de a las 13',
-  'oye 15 min antes podemos?',
-  'a las 22 mejor?',
-  'puedes a las 11 en vez de 10:30?',
-  'me sale algo a primera hora, mejor por la tarde',
-  'a las 13:45 puedes en vez de las 13:30?',
-  'puedo más tarde dentro de hoy?',
-  'cambiamos a las 7 de la tarde?',
-  'puedo a las 18 y media hoy?',
-  'oye, una hora antes podemos?',
-  'me apañas 45 min después?',
-  'puedo en horario distinto hoy mismo?',
-  'a la noche mejor, a las 22?',
-  'mejor a la mañana, a las 9?',
-  'no a las 16 pero sí a las 16:30?',
-  'a las 19:00 puedo, a las 18 no',
-  'a la una mejor en vez de las dos?',
-  'puedes 10 min antes?',
+const R7 = [
+  'a la 1 me viene mejor que a las 2',
+  'puede ser a las 16:15 en vez de 16:00?',
+  'mejor por la mañana del mismo día?',
+  'puedo a las 17 antes de las 18 mejor?',
+  'puedes a las 8 si entras antes?',
+  'a la siesta mejor, sobre las 16',
+  'puedo a las 12 del mediodía hoy?',
+  'mejor 45 min después?',
+  'antes de cenar, sobre las 20?',
+  'a primera hora si puedes',
+  'a la última hora del día?',
+  'cualquier rato hoy de 15 a 22',
+  'puedo a las 10:30 hoy?',
+  'puedes adelantarla unos minutos?',
+  'cambiamos 30 min más tarde hoy?',
+  'a las 19:15 mejor que a las 19?',
+  'mejor a media tarde que a primera?',
+  'a las 9 si fuera posible hoy',
+  'puedes 20 minutos antes hoy?',
+  'puedo a las 13:50 hoy?',
 ];
-G7.forEach(msg => cases.push(leadOnly('G7-TIME-TWEAK', `G7-${N()}`, msg, { expected: 'no_action' })));
+R7.forEach(msg => cases.push(leadOnly('R7-TIME-TWEAK', `R7-${N()}`, msg, { expected: 'no_action' })));
 
 // ============================================================
-// G8 — POST-LINK ACEPTACIÓN (50)
+// R8 — POST-LINK ACEPTACIÓN (25 nuevas)
 // ============================================================
-const G8 = [
-  ['no sé si podré asistir', 'vale gracias!'],
-  ['tengo lío esta tarde', 'genial, lo cambio ahora mismo, gracias'],
-  ['va a ser complicado', 'perfecto, ahora reagendo'],
-  ['no podré a esa hora', 'dame'],
-  ['me complica el día', 'miro y reagendo, gracias'],
-  ['no me viene bien hoy', 'genial gracias'],
-  ['no sé si llego', 'vale cuando pueda reagendo'],
-  ['imposible hoy', 'ya cambio la cita, gracias'],
-  ['no puedo a esa hora', 'mil gracias, reagendo ahora'],
-  ['lo dejamos?', 'le doy, gracias'],
-  ['no podré ir', 'cambiando ahora, gracias'],
-  ['me surge algo', 'ya reagendé, gracias'],
-  ['mejor más tarde', 'hecho, gracias'],
-  ['no creo que pueda', 'lo reagendo yo, gracias'],
-  ['esa fecha no me viene', 'cambio la fecha, gracias'],
-  ['no llego', 'mejor así, gracias'],
-  ['no puedo asistir', 'bingo, lo cambio'],
-  ['mejor reagendamos', 'genial, cambio ahora mismo'],
-  ['no podré llamarte', 'paso a cambiarla, gracias'],
-  ['no me viene bien', 'okk, cambio ahora'],
-  ['lo dejamos para otro día', 'eso es, gracias'],
-  ['no puedo hoy', 'perfecto, cambio para mañana'],
-  ['imposible esta semana', 'buscaré hueco, gracias'],
-  ['no podré', 'gracias, cambio ahora'],
-  ['cancelo', 'thanks, lo miro ya'],
-  ['esta semana imposible', 'voy a buscar otra fecha'],
-  ['mejor reagendar', 'sí, voy a cambiarla'],
-  ['no me va a dar tiempo', 'lo cambio entonces, gracias'],
-  ['no soy capaz hoy', 'ahora cambio, mil gracias'],
-  ['esta semana fatal', 'voy a moverla, gracias'],
-  ['cancelo lo de mañana', 'reagendo ya mismo'],
-  ['no llego ni de coña', 'pongo otra fecha'],
-  ['imposible llegar', 'ya cambio, gracias'],
-  ['tendré que cancelar', 'mejor lo muevo, gracias'],
-  ['no podré asistir', 'cambio fecha, mil gracias'],
-  ['perdón, no puedo', 'reagendo ahora mismo'],
-  ['no llego a tiempo', 'lo muevo, gracias'],
-  ['no puedo definitivo', 'paso a reagendar'],
-  ['ay no llego', 'ya elijo otra fecha'],
-  ['lo siento mucho', 'reagendo ahora'],
-  ['me veo obligado a moverla', 'gracias por el link, lo cambio'],
-  ['cancela porfa', 'mil gracias, ahora reagendo'],
-  ['ay tengo lío', 'lo cambio entonces!'],
-  ['necesito moverla', 'gracias, ya elijo otra hora'],
-  ['no puedo a esa hora', 'lo cambio, mil gracias'],
-  ['cambiando ya', 'paso al link, mil gracias'],
-  ['imposible', 'reagendando, gracias'],
-  ['otro día mejor', 'eligo otra fecha, gracias'],
-  ['cancela esto', 'ya lo muevo'],
-  ['no estaré', 'paso a moverla, mil gracias'],
+const R8 = [
+  ['no puedo a esa hora', 'thanks ahora lo cambio'],
+  ['mañana imposible', 'gracias, busco otro hueco'],
+  ['no me viene bien', 'mil gracias, ya elijo otra fecha'],
+  ['lo dejamos para otra fecha', 'ok cambiando!'],
+  ['me sobrepasa el día', 'paso al link, gracias'],
+  ['no llego ese día', 'ok, lo muevo'],
+  ['tengo que mover la fecha', 'gracias, escojo otra'],
+  ['no puedo asistir tal día', 'thanks, cambio'],
+  ['no me da margen', 'mil gracias, reagendo'],
+  ['imposible esa fecha', 'paso a moverla'],
+  ['mejor en otro hueco', 'gracias!'],
+  ['mañana lío', 'gracias, ya lo cambio'],
+  ['esa fecha mal', 'eligo otra fecha gracias'],
+  ['no se ajusta a mi agenda', 'gracias, cambio'],
+  ['ese día no puedo', 'thanks lo cambio ya'],
+  ['mover la fecha mejor', 'ok, gracias por el link'],
+  ['no me viene esa fecha', 'eligo otra, gracias'],
+  ['ay no me cuadra', 'gracias por el link, busco hueco'],
+  ['no podré ese día', 'gracias, ahora reagendo'],
+  ['déjamelo otro día', 'gracias!'],
+  ['imposible asistir mañana', 'lo muevo, gracias'],
+  ['no llego a esa fecha', 'gracias, paso al link'],
+  ['cancelo mejor', 'gracias, ya reagendo en otro día'],
+  ['no puedo este día', 'lo cambio gracias'],
+  ['hay que mover', 'gracias por el link, escojo otra'],
 ];
-G8.forEach(([before, after]) => cases.push(postLink('G8-LINK-ACCEPT', `G8-${N()}`, before, after, { expected: 'cancel_with_followup' })));
+R8.forEach(([before, after]) => cases.push(postLink('R8-LINK-ACCEPT', `R8-${N()}`, before, after, { expected: 'cancel_with_followup' })));
 
 // ============================================================
-// G9 — POST-LINK RECHAZO (40)
+// R9 — POST-LINK RECHAZO (20 nuevas)
 // ============================================================
-const G9 = [
-  ['no sé si podré', 'vale sí puedo asistir'],
-  ['no sé si llego', 'al final sí voy, gracias'],
-  ['va estar dificil', 'no no, déjalo, iré'],
-  ['no podré', 'olvídalo, sí voy'],
-  ['no me cuadra', 'al final sí asisto'],
-  ['duda asistir', 'tranquilo, voy'],
-  ['igual no llego', 'al final lo resolví, voy'],
-  ['no podré ir', 'no, no cambies nada, sí puedo'],
-  ['no creo que pueda', 'sí puedo al final'],
-  ['no llego', 'iré, tranquilo'],
-  ['no me viene', 'no, voy sin problema'],
-  ['no podré', 'no hay cambios, voy'],
-  ['imposible hoy', 'al final sí asisto a la llamada'],
-  ['mejor reagendamos', 'no espera mejor déjalo, sí puedo'],
-  ['no podre llamada', 'no hace falta cambiarla, voy'],
-  ['no creo que vaya', 'mantengo la cita, gracias'],
-  ['cancelo', 'no, no, sí voy'],
-  ['no podemos quedar', 'iremos, no te preocupes'],
-  ['mejor cancela', 'confirma la cita que sí voy'],
-  ['no llego', 'no, todo sigue igual, iré'],
-  ['va a estar mal', 'me organizo, ahí estaré'],
-  ['no podré asistir', 'lo arregló mi jefe, voy a poder'],
-  ['no creo que llegue', 'me da tiempo, no muevas nada'],
-  ['mejor moverlo', 'al final no hace falta, voy'],
-  ['imposible casi seguro', 'al final voy, hasta luego'],
-  ['no puedo seguramente', 'me lo apaño, voy a estar'],
-  ['casi seguro no llego', 'cambio de planes, sí voy'],
-  ['no voy a poder', 'me lo gestiono, voy'],
-  ['no llegaré', 'ya está, voy a poder'],
-  ['me será imposible', 'al final puedo, mantén la cita'],
-  ['no podré dar la cita', 'no, sí puedo'],
-  ['ay no llego', 'sí puedo, no muevas nada'],
+const R9 = [
+  ['no podré', 'ya me organicé, voy'],
+  ['no llego', 'me cancelaron lo otro, asisto'],
+  ['va a estar mal', 'me apaño, ahí estaré'],
+  ['no creo', 'cambio de planes, sí voy'],
+  ['imposible', 'al final me liberé, voy'],
+  ['no puedo', 'mejor sí puedo, voy'],
+  ['va a ser difícil', 'me organicé, ahí estaré'],
+  ['mejor lo movemos', 'al final no hace falta, voy'],
+  ['no voy a poder', 'al final sí me da tiempo, voy'],
+  ['va estar complicado', 'sí me da, ahí estoy'],
+  ['no llegaré', 'cancelo lo otro, sí voy'],
+  ['cancelo', 'no espera, ya me organicé, voy'],
+  ['no me va', 'me dio tiempo, voy ahí'],
   ['no podré conectar', 'me da tiempo, voy'],
-  ['va a ser que no', 'al final sí, ahí estaré'],
-  ['imposible', 'no, sí voy a estar'],
-  ['lo veo difícil', 'me apaño, ahí estoy'],
-  ['no creo que', 'tranquilo, voy'],
-  ['mejor lo cancelamos', 'no espera, sí puedo'],
-  ['no llego a la cita', 'me organicé, voy'],
-  ['cancela mejor', 'no, sí voy, déjala'],
+  ['casi seguro no llego', 'al final voy, gracias'],
+  ['no llego seguro', 'me apaño, asisto'],
+  ['no puedo casi seguro', 'al final sí voy'],
+  ['mejor cancelar', 'no espera, sí voy'],
+  ['no podré asistir', 'me liberé, ahí estoy'],
+  ['imposible casi', 'al final sí, hasta ahora'],
 ];
-G9.forEach(([before, after]) => cases.push(postLink('G9-LINK-REJECT', `G9-${N()}`, before, after, { expected: 'no_action' })));
+R9.forEach(([before, after]) => cases.push(postLink('R9-LINK-REJECT', `R9-${N()}`, before, after, { expected: 'no_action' })));
 
 // ============================================================
-// G10 — POST-LINK AMBIGUO (40)
+// R10 — POST-LINK AMBIGUO (20 nuevas)
 // ============================================================
-const G10 = [
-  ['no sé', 'vale'],
-  ['no sé si llegaré', 'ok'],
-  ['no podré', 'gracias'],
-  ['tengo dudas', 'déjame pensarlo y te digo'],
-  ['no sé', 'luego te digo'],
-  ['duda', 'ahora miro'],
-  ['no sé', 'mmm'],
-  ['igual no llego', 'okey'],
-  ['no sé', '🤔'],
-  ['no podré', 'veo'],
-  ['no sé si llego', 'ya'],
-  ['va estar dificil', 'ok ya te digo'],
-  ['igual cancelo', 'ahora veo'],
-  ['no podré', 'luego miro a ver'],
-  ['mejor reagendar', 'te digo más tarde'],
-  ['duda asistir', 'vale lo pensaré'],
-  ['no sé', 'no sé aún'],
-  ['igual no voy', 'ya veré'],
-  ['no sé si llego', 'ahora no puedo mirarlo'],
-  ['imposible', 'luego decido'],
-  ['no me viene bien', 'lo pensaré'],
-  ['cancelo', 'ahora veo, te aviso'],
-  ['no llego', 'a ver, ahora miro'],
-  ['ay no sé', 'okk'],
-  ['va estar dificil', 'mmm bueno'],
-  ['no podré', 'me lo pienso'],
-  ['cancelo posible', 'ya te confirmo'],
-  ['no llego seguro', 'cuando pueda lo miro'],
-  ['imposible casi', 'okk, te digo'],
-  ['cancelo', 'ya veo qué hago'],
-  ['mejor cancelar', 'lo veo en un rato'],
-  ['no llego a tiempo seguro', 'vale, ahora te digo'],
-  ['no soy capaz hoy', 'ahora te confirmo'],
-  ['va estar mal', 'a ver qué hago'],
-  ['no podré', 'mmm, dame un rato'],
-  ['imposible', 'a ver, te digo'],
-  ['ay', 'jaja vale'],
-  ['cancelo', 'gracias por avisar'],
-  ['no llego', 'vale, ya veré'],
-  ['no podré seguro', 'ya te confirmo'],
+const R10 = [
+  ['no podré', 'tengo que mirar agenda'],
+  ['no me viene bien', 'lo veo después'],
+  ['imposible', 'a ver qué hago'],
+  ['no llego', 'a ver si me organizo, te digo'],
+  ['cancelo', 'lo pienso bien'],
+  ['mejor cancelar', 'a ver, miro'],
+  ['no podré', 'esperando ver agenda'],
+  ['no puedo', 'mañana te digo'],
+  ['no llegaré', 'consulto a mi pareja'],
+  ['va estar mal', 'me lo pienso'],
+  ['no llego', 'okay luego veo'],
+  ['imposible asistir', 'lo veo después'],
+  ['cancelo posiblemente', 'lo pensaré'],
+  ['mejor lo movemos', 'cuando pueda lo miro'],
+  ['no voy a poder', 'tengo que ver'],
+  ['no me cuadra', 'ya veré qué hacer'],
+  ['va difícil', 'okk te aviso'],
+  ['no llego', 'sin más, gracias'],
+  ['no podré', 'a ver, te aviso'],
+  ['imposible', 'lo veo más tarde'],
 ];
-G10.forEach(([before, after]) => cases.push(postLink('G10-LINK-AMBIG', `G10-${N()}`, before, after, { expected: 'no_action' })));
+R10.forEach(([before, after]) => cases.push(postLink('R10-LINK-AMBIG', `R10-${N()}`, before, after, { expected: 'no_action' })));
 
 // ============================================================
-// G11 — MULTI-CITA PARTIAL (30)
+// R11 — PARTIAL (15 nuevas)
 // ============================================================
-const G11Cases = [
-  ['Tienes 2 llamadas, martes y jueves', 'cancela solo la del martes, la del jueves la mantengo'],
-  ['Te recuerdo: martes y jueves', 'la del jueves mantén, cancela la del martes'],
-  ['Llamadas martes y jueves', 'cancela la primera, la segunda voy'],
-  ['Recuerda tus 2 llamadas', 'martes voy pero jueves no podré'],
-  ['2 llamadas agendadas', 'anula solo una, la del lunes'],
-  ['Llamadas: día 17 y día 19', 'cancela la del 17, la del 19 mantén'],
-  ['Recuerda las 2 llamadas', 'la segunda no puedo, la primera sí'],
-  ['Tienes llamada mañana y otra el viernes', 'la de mañana voy, la del viernes cancela'],
-  ['2 llamadas: martes y jueves', 'no puedo el martes, déjame solo el jueves'],
-  ['Recuerda tus 2 llamadas', 'mantengo solo la del jueves, la otra cancela'],
-  ['2 calls programadas', 'anula la del lunes, voy a la otra'],
-  ['2 cositas agendadas', 'no puedo a una, la del martes cancela'],
-  ['Llamadas: mañana y pasado', 'cancela una, dejo la de pasado'],
-  ['Tu agenda: mañana 16h y jueves 18h', 'mantengo la de jueves, la de mañana anúlala'],
-  ['2 llamadas confirmadas', 'cancela la segunda? La primera sí puedo'],
-  ['2 sesiones programadas', 'quita solo una, la primera, la segunda sí voy'],
-  ['Recordatorio: 2 llamadas', 'conservo la segunda, cancela la primera'],
-  ['Llamadas: 17 abril y 24 abril', 'solo cancelo la del 17, la del 24 voy'],
-  ['Tienes martes y jueves', 'me deshago de la del martes, sigo con la del jueves'],
-  ['Tu agenda esta semana: 2 calls', 'quita la del primer día, voy a la segunda'],
-  ['Llamadas: este lunes y martes', 'cancela la del lunes, voy al martes'],
-  ['Te recuerdo: hoy y mañana', 'la de hoy cancela, mañana sí voy'],
-  ['2 calls esta semana', 'la primera mejor anula, segunda mantén'],
-  ['Doble llamada esta semana', 'anúlame la primera, segunda voy ok'],
-  ['Tu plan: 2 calls', 'una cancela, la del jueves seguro voy'],
-  ['Citas: lunes y viernes', 'lunes no llego, viernes voy'],
-  ['Recordatorio: tus 2 sesiones', 'mantengo la del viernes, lunes cancela'],
-  ['Dos llamadas próximas', 'no puedo a la primera, segunda sí'],
-  ['Tienes 2 fechas', 'cancélame solo la próxima, la siguiente sí voy'],
-  ['Llamadas semana próxima: 2', 'quita la del lunes, dejo la del miércoles'],
+const R11Cases = [
+  ['2 llamadas: jueves y sábado', 'cancela el jueves, sábado voy'],
+  ['Tienes martes y miércoles', 'el martes anula, miércoles ok'],
+  ['Citas: lunes y miércoles', 'la del lunes no, la del miércoles sí'],
+  ['Tu doble compromiso', 'cancela la primera, mantén segunda'],
+  ['2 calls este mes', 'la del 15 cancela, la del 22 ok'],
+  ['Llamadas próximas: 2', 'no voy a la primera, segunda sí'],
+  ['Tu agenda: 2 sesiones', 'borra la del jueves, viernes asisto'],
+  ['Recordatorio doble cita', 'la temprana cancela, la tarde ok'],
+  ['2 reservas confirmadas', 'quita la próxima, segunda ok'],
+  ['Tu plan: 2 calls', 'la primera no llego, la segunda voy'],
+  ['Llamadas: hoy y mañana', 'hoy no, mañana sí'],
+  ['Tus citas próximas', 'una sí una no, cancela viernes'],
+  ['2 sesiones agendadas', 'mejor la del miércoles, la del lunes anula'],
+  ['Recuerda: 2 calls', 'mantén la última, cancela la primera'],
+  ['Tu reserva múltiple', 'quédate con la del jueves, cancela la del martes'],
 ];
-G11Cases.forEach(([coachMsg, leadMsg]) => cases.push(exchange('G11-PARTIAL', `G11-${N()}`, {
+R11Cases.forEach(([coachMsg, leadMsg]) => cases.push(exchange('R11-PARTIAL', `R11-${N()}`, {
   messages: [
     { direction: 'outbound', body: coachMsg, dateAdded: mkTs(20) },
     { direction: 'inbound', body: leadMsg, dateAdded: mkTs(2) },
@@ -613,36 +403,26 @@ G11Cases.forEach(([coachMsg, leadMsg]) => cases.push(exchange('G11-PARTIAL', `G1
 })));
 
 // ============================================================
-// G12 — MULTI-CITA BOTH (25)
+// R12 — BOTH (15 nuevas)
 // ============================================================
-const G12Cases = [
-  ['Tienes 2 llamadas agendadas', 'cancela las dos por favor', 2],
-  ['2 llamadas confirmadas', 'no puedo a ninguna, esta semana imposible', 2],
-  ['3 calls esta semana', 'anula todas las llamadas que tengo', 3],
-  ['2 sesiones programadas', 'cancela todo, esta semana imposible', 2],
-  ['2 llamadas programadas', 'no llego a ninguna, perdona', 2],
-  ['2 calls', 'cancela todas mis llamadas por favor', 2],
-  ['2 llamadas activas', 'imposible mantener ninguna llamada esta semana', 2],
-  ['2 citas', 'anula todo, gracias', 2],
-  ['3 llamadas próximas', 'tienes que cancelar mis citas, no voy a poder', 3],
-  ['2 llamadas confirmadas', 'borra todas mis llamadas activas', 2],
-  ['2 calls esta semana', 'no voy a asistir a nada esta semana', 2],
-  ['Tus 2 llamadas pendientes', 'las dos llamadas las tengo que cancelar', 2],
-  ['2 sesiones próximas', 'quita todo de mi calendario, hablamos otra semana', 2],
-  ['3 citas activas', 'cancela las 3 llamadas porfa, no puedo esta semana', 3],
-  ['Tus 2 calls', 'no voy a ir a ninguna, cancela todo', 2],
-  ['Doble llamada agendada', 'imposible, anula las 2', 2],
-  ['2 fechas reservadas', 'mejor borra todo, no me da la semana', 2],
-  ['Recordatorio: 2 llamadas', 'no puedo a ninguna, todo cancelado por favor', 2],
-  ['Tu doble cita', 'imposible las 2, perdona', 2],
-  ['2 calls planificadas', 'cancela todo, surgió algo', 2],
-  ['Llamadas confirmadas', 'tira para abajo las dos, no llego', 2],
-  ['Tu agenda: 2 sesiones', 'anula todo, semana fatal', 2],
-  ['2 fechas', 'mejor que ninguna, cancela todo', 2],
-  ['Tu doble compromiso', 'imposible, cancela ambas', 2],
-  ['2 calls', 'no llego a ninguna, anula todo gracias', 2],
+const R12Cases = [
+  ['2 llamadas pendientes', 'tira para abajo ambas, gracias', 2],
+  ['Tu doble cita', 'cancela las dos, semana fatal', 2],
+  ['Citas próximas', 'no voy a ninguna, anula todo', 2],
+  ['Tu agenda doble', 'borra todo, mejor otra semana', 2],
+  ['2 calls agendadas', 'cancélamelas las 2', 2],
+  ['Llamadas: 2', 'a ninguna voy, perdona', 2],
+  ['Sesiones pendientes', 'quita todas, surgió algo importante', 2],
+  ['Tus 2 reservas', 'imposibles ambas', 2],
+  ['Doble compromiso', 'paso de las 2', 2],
+  ['Recuerda 3 calls', 'imposible las 3, cancela todo', 3],
+  ['Tus 3 citas', 'borra las 3 por favor', 3],
+  ['Múltiples reservas', 'todo cancelado, gracias', 2],
+  ['Tu doble reserva', 'no asisto a ninguna', 2],
+  ['Llamadas confirmadas', 'tira pa atrás las dos, no llego', 2],
+  ['Tus 3 sesiones', 'cancela las 3, surgió algo', 3],
 ];
-G12Cases.forEach(([coachMsg, leadMsg, idsCount]) => cases.push(exchange('G12-BOTH', `G12-${N()}`, {
+R12Cases.forEach(([coachMsg, leadMsg, idsCount]) => cases.push(exchange('R12-BOTH', `R12-${N()}`, {
   messages: [
     { direction: 'outbound', body: coachMsg, dateAdded: mkTs(20) },
     { direction: 'inbound', body: leadMsg, dateAdded: mkTs(2) },
@@ -651,1142 +431,519 @@ G12Cases.forEach(([coachMsg, leadMsg, idsCount]) => cases.push(exchange('G12-BOT
 })));
 
 // ============================================================
-// G13 — FLIP-FLOP (40)
+// R13 — FLIP-FLOP (15 nuevas)
 // ============================================================
-const G13Cases = [
-  [['no creo que pueda', 'ah espera sí, voy'], 'no_action'],
-  [['ahí estoy', 'no espera, al final no puedo'], 'cancel_with_followup'],
-  [['no puedo', 'sí puedo', 'no, mejor lo dejo', 'no espera, vale, al final voy sí'], 'no_action'],
-  [['sí voy', 'ah no, no podré', 'espera sí puedo', 'no, ya definitivo, no puedo, cancela'], 'cancel_with_followup'],
-  [['cancela', 'no espera, sí voy', 'no, mejor cancela definitivo'], 'cancel_with_followup'],
-  [['no sé si ir', 'me lo pienso un momento', 'pues nada, voy a ir, ahí estaré'], 'no_action'],
-  [['creo que no podré', 'sí, definitivo, no voy a poder'], 'cancel_with_followup'],
-  [['me lo pienso', 'no sé', 'al final voy, gracias'], 'no_action'],
-  [['no puedo asistir hoy', 'ah espera, sí puedo, voy'], 'no_action'],
-  [['voy', 'no espera, no puedo, cancela'], 'cancel_with_followup'],
-  [['vale ahí estoy', 'oye no sé si llego', 'no nada, voy, hasta ahora'], 'no_action'],
-  [['sí voy', 'no espera', 'me lo pienso', 'finalmente no voy a poder, cancela'], 'cancel_with_followup'],
-  [['cancela', 'no espera mantén', 'no mejor cancela', 'no no, mantén, voy a ir'], 'no_action'],
-  [['voy', 'voy fijo', 'ah no, me ha surgido algo, cancela'], 'cancel_with_followup'],
-  [['no puedo', 'espera sí puedo', 'no, no puedo', 'sí puedo, definitivo'], 'no_action'],
-  [['cancela porfa', 'sí, cancela definitivo, no voy a poder esta semana'], 'cancel_with_followup'],
-  [['no puedo hoy', 'mañana sí puedo no?', 'no espera, no, ni hoy ni mañana, cancela'], 'cancel_with_followup'],
-  [['no creo que pueda', 'estoy mirando', 'ya, sí, sí puedo, allí nos vemos'], 'no_action'],
-  [['no, no llego', 'espera, miro la agenda', 'sí puedo, voy', 'no, definitivo no, cancela'], 'cancel_with_followup'],
-  [['no podré', 'me cambian los planes', 'sí, ahí estaré', 'definitivo!'], 'no_action'],
-  [['cancela', 'espera, miro a ver', 'al final si puedo, no cancela'], 'no_action'],
-  [['voy', 'igual no llego', 'mejor cancela', 'no espera, llego justo, voy'], 'no_action'],
-  [['no llego', 'ah no, sí llego, voy', 'no, no voy', 'cancela definitivo'], 'cancel_with_followup'],
-  [['mejor cancela', 'no espera no, sí voy', 'voy sí o sí'], 'no_action'],
-  [['no puedo', 'no espera sí', 'no en serio no puedo'], 'cancel_with_followup'],
-  [['ahí estaré', 'aunque igual no', 'no, sí voy fijo'], 'no_action'],
-  [['confirmado', 'oye una cosa', 'al final no puedo'], 'cancel_with_followup'],
-  [['voy', 'me sale algo', 'creo que llego', 'sí, sí voy'], 'no_action'],
-  [['no voy', 'sí voy', 'no voy', 'no voy definitivo'], 'cancel_with_followup'],
-  [['sí voy', 'no voy', 'sí voy', 'sí voy seguro'], 'no_action'],
-  [['cancela', 'espera no, mantenla', 'mantén sí, voy'], 'no_action'],
-  [['ay, no creo poder', 'lo intento', 'al final no, cancela'], 'cancel_with_followup'],
-  [['imposible', 'espera me organizo', 'no, no llego, cancela'], 'cancel_with_followup'],
-  [['no llego', 'a ver si me organizo', 'sí llego, voy'], 'no_action'],
-  [['cancela', 'espera no, déjala', 'sí voy, déjala'], 'no_action'],
-  [['voy', 'ay no', 'voy fijo', 'fijo voy'], 'no_action'],
-  [['no podré', 'sí puedo', 'no en serio', 'no podré, cancela'], 'cancel_with_followup'],
-  [['cancela', 'no espera', 'mantén', 'no mantén, voy a ir'], 'no_action'],
-  [['cancela', 'cancela definitivamente', 'sí, cancela'], 'cancel_with_followup'],
-  [['voy', 'voy seguro', 'no espera, no llego, cancela'], 'cancel_with_followup'],
+const R13Cases = [
+  [['mañana imposible', 'espera sí puedo', 'al final voy'], 'no_action'],
+  [['allí estoy', 'me sale algo', 'no llego, perdona'], 'cancel_with_followup'],
+  [['cancela', 'no espera, voy', 'no, mejor cancela'], 'cancel_with_followup'],
+  [['voy a ir', 'no sé', 'sí voy fijo'], 'no_action'],
+  [['no podré', 'sí podré', 'no, definitivo no podré'], 'cancel_with_followup'],
+  [['lo dejamos', 'no espera, sí puedo', 'voy a ir mañana'], 'no_action'],
+  [['voy mañana', 'no espera', 'sí voy fijo'], 'no_action'],
+  [['cancela', 'no espera mantén', 'voy a ir, mantén'], 'no_action'],
+  [['no voy', 'pensándolo', 'sí voy'], 'no_action'],
+  [['ahí estoy', 'me sale algo', 'tendré que cancelar'], 'cancel_with_followup'],
+  [['no llego', 'sí puedo', 'no, no llego, definitivo'], 'cancel_with_followup'],
+  [['voy', 'cambio de planes', 'al final voy'], 'no_action'],
+  [['imposible', 'no espera lo soluciono', 'sí asisto'], 'no_action'],
+  [['cancela', 'mejor no, voy', 'sí voy mañana'], 'no_action'],
+  [['voy', 'me sale algo importante', 'no, no puedo, cancela'], 'cancel_with_followup'],
 ];
-G13Cases.forEach(([msgs, expected]) => {
-  cases.push(exchange('G13-FLIP-FLOP', `G13-${N()}`, {
+R13Cases.forEach(([msgs, expected]) => {
+  cases.push(exchange('R13-FLIP-FLOP', `R13-${N()}`, {
     messages: msgs.map((m, i) => ({ direction: 'inbound', body: m, dateAdded: mkTs(30 - i * 7) })),
     expected,
   }));
 });
 
 // ============================================================
-// G14 — MEDIA (50)
+// R14 — MEDIA (20 nuevas)
 // ============================================================
-const mediaCases = [
-  [['voice.mp4'], '', 'audio_needs_review'],
-  [['audio.ogg'], '', 'audio_needs_review'],
-  [['photo.jpg'], '', 'no_action'],
-  [['screenshot.png'], '', 'no_action'],
-  [['doc.pdf'], '', 'no_action'],
-  [['sticker.webp'], '', 'no_action'],
-  [['gif.gif'], '', 'no_action'],
-  [['audio.mp3'], '', 'audio_needs_review'],
-  [['ig.mp4'], '', 'audio_needs_review'],
-  [['1.jpg', '2.jpg'], '', 'no_action'],
-  [['1.jpg', 'voice.mp4'], '', 'audio_needs_review'],
-  [[], 'https://something.com/link', 'no_action'],
-  [[], '😊', 'no_action'],
-  [[], '😢', 'no_action'],
-  [[], '👏', 'no_action'],
-  [[], '🤷', 'no_action'],
-  [['video.mov'], '', 'audio_needs_review'],
-  [['photo.webp'], '', 'no_action'],
-  [['vcard.vcf'], '', 'no_action'],
-  [['contact.vcf'], '', 'no_action'],
-  [['audio.m4a'], '', 'audio_needs_review'],
-  [['mensaje.opus'], '', 'audio_needs_review'],
-  [['imagen.heic'], '', 'no_action'],
-  [['document.docx'], '', 'no_action'],
-  [['screenshot2.png'], '', 'no_action'],
-  [['firma.svg'], '', 'no_action'],
-  [['video-corto.mp4'], '', 'audio_needs_review'],
-  [['captura.jpeg'], '', 'no_action'],
-  [['planilla.xlsx'], '', 'no_action'],
-  [['voz.wav'], '', 'audio_needs_review'],
+const r14Media = [
+  [['nuevo-audio.mp4'], '', 'audio_needs_review'],
+  [['voz-instagram.m4a'], '', 'audio_needs_review'],
+  [['foto-pizza.jpg'], '', 'no_action'],
+  [['captura-error.png'], '', 'no_action'],
+  [['contrato.pdf'], '', 'no_action'],
+  [['emoji-sticker.webp'], '', 'no_action'],
+  [['meme.gif'], '', 'no_action'],
+  [['notas-voz.opus'], '', 'audio_needs_review'],
+  [['saludo.ogg'], '', 'audio_needs_review'],
+  [['video-mio.mp4'], '', 'audio_needs_review'],
+  [[], '🤩', 'no_action'],
+  [[], '😎', 'no_action'],
+  [[], '🙄', 'no_action'],
+  [['mapa.jpg'], 'estoy aquí, llegando', 'no_action'],
+  [['agenda.png'], 'no voy a llegar, cancela', 'cancel_with_followup'],
+  [['comprobante.pdf'], 'aquí mi pago', 'no_action'],
+  [['recibo.jpg'], 'lo he hecho ya, no puedo asistir', 'cancel_with_followup'],
+  [['screenshot.png'], 'mira esto', 'no_action'],
+  [[], 'http://link.com/algo', 'no_action'],
+  [[], '🫠', 'no_action'],
 ];
-mediaCases.forEach(([atts, body, expected]) => {
+r14Media.forEach(([atts, body, expected]) => {
   const msg = { direction: 'inbound', body, dateAdded: mkTs(2) };
   if (atts.length) msg.attachments = atts.map(a => `https://example.com/${a}`);
-  cases.push(exchange('G14-MEDIA', `G14-${N()}`, { messages: [msg], expected }));
-});
-
-const mixedMedia = [
-  ['no podré ir a la llamada', 'cancel_with_followup'],
-  ['ahí estaré, gracias', 'no_action'],
-  ['perdona, no llego', 'cancel_with_followup'],
-  ['vale, mañana hablamos', 'no_action'],
-  ['cancela porfa', 'cancel_with_followup'],
-  ['link funciona?', 'no_action'],
-  ['voy a llegar tarde 10 min', 'no_action'],
-  ['mañana imposible', 'cancel_with_followup'],
-  ['recibo, hasta mañana', 'no_action'],
-  ['confírmame el link', 'no_action'],
-  ['envío esto, no podré', 'cancel_with_followup'],
-  ['mira lo que mando, todo en orden', 'no_action'],
-  ['esto es lo último, no voy', 'cancel_with_followup'],
-  ['lo dejamos para luego', 'cancel_with_followup'],
-  ['confirmo y mando esto', 'no_action'],
-  ['llego en 5 min', 'no_action'],
-  ['todo bien, voy', 'no_action'],
-  ['ay no llego, perdona', 'cancel_with_followup'],
-  ['gracias por el video', 'no_action'],
-  ['no me funciona el link', 'no_action'],
-];
-mixedMedia.forEach(([body, expected]) => cases.push(exchange('G14-MEDIA', `G14-${N()}`, {
-  messages: [{ direction: 'inbound', body, attachments: ['https://example.com/photo.jpg'], dateAdded: mkTs(2) }],
-  expected,
-})));
-
-// ============================================================
-// G15 — COLOQUIAL / TYPOS (50)
-// ============================================================
-const G15Cases = [
-  ['mañana noay manera de q vaya', 'cancel_with_followup'],
-  ['marcos no puedoo ir tio', 'cancel_with_followup'],
-  ['ke no puedo ir tioo', 'cancel_with_followup'],
-  ['xfaa cancelaaa', 'cancel_with_followup'],
-  ['porfa cancelame', 'cancel_with_followup'],
-  ['tio paso de esto, gracias', 'cancel_no_followup'],
-  ['no llga', 'cancel_with_followup'],
-  ['cncl', 'cancel_with_followup'],
-  ['mr no puedo', 'cancel_with_followup'],
-  ['tas loco si crees que voy a esa hora bro', 'cancel_with_followup'],
-  ['noo pueod', 'cancel_with_followup'],
-  ['na na, dejalo bro', 'cancel_with_followup'],
-  ['vsa, cancela la llamada', 'cancel_with_followup'],
-  ['cmpadre no voy a llegar', 'cancel_with_followup'],
-  ['jefee se me complica, mañana imposible', 'cancel_with_followup'],
-  ['na, paso de la llamada', 'cancel_with_followup'],
-  ['no soy capaz de mantenerla esta vez tio', 'cancel_with_followup'],
-  ['cncl la llmd porfa', 'cancel_with_followup'],
-  ['cncl x favorrr', 'cancel_with_followup'],
-  ['noooo puedoo manana sorry tio', 'cancel_with_followup'],
-  ['jvr, paso bro, paso del todo', 'cancel_no_followup'],
-  ['no podre tio, lo siento', 'cancel_with_followup'],
-  ['ayrrr no voy a podeer mañana', 'cancel_with_followup'],
-  ['noo q va, q va, no llego', 'cancel_with_followup'],
-  ['marcos cancelaa porfaa', 'cancel_with_followup'],
-  ['t escribo q no voy', 'cancel_with_followup'],
-  ['na mejor lo dejmos', 'cancel_with_followup'],
-  ['m anula la llamada', 'cancel_with_followup'],
-  ['jo no puedo manana', 'cancel_with_followup'],
-  ['marcos imposible ir', 'cancel_with_followup'],
-  ['ke imposible bro', 'cancel_with_followup'],
-  ['cancela ke imposible', 'cancel_with_followup'],
-  ['no puedo bro, otra vez sera', 'cancel_with_followup'],
-  ['anula mejor, no podre tio', 'cancel_with_followup'],
-  ['jaja cancela porfa, surgio algo', 'cancel_with_followup'],
-  ['mejor noo, paso', 'cancel_with_followup'],
-  ['noo es definitivo, cancela', 'cancel_with_followup'],
-  ['ke vaaa, no llego', 'cancel_with_followup'],
-  ['tronco no podre', 'cancel_with_followup'],
-  ['anula esoo porfa', 'cancel_with_followup'],
-  ['ahi mismo, vamos', 'no_action'],
-  ['grcs tio, ahi estoy', 'no_action'],
-  ['perfectoooo nos vmos manana', 'no_action'],
-  ['jajaja vale ahi estoy', 'no_action'],
-  ['oki tronco, manana hablamos', 'no_action'],
-  ['noses si llgo', 'no_action'],
-  ['vle ahi vere si llego', 'no_action'],
-  ['vergaaa cancela manooo (latino)', 'cancel_with_followup'],
-  ['no manchess, no llego wey', 'cancel_with_followup'],
-  ['paso, no qiero seguir, gracias', 'cancel_no_followup'],
-];
-G15Cases.forEach(([msg, expected]) => {
-  const opts = { expected };
-  if (msg.includes('ahi') || msg.includes('vle') || msg.includes('oki')) opts.context = 'Mañana hablamos';
-  cases.push(leadOnly('G15-COLOQUIAL', `G15-${N()}`, msg, opts));
+  cases.push(exchange('R14-MEDIA', `R14-${N()}`, { messages: [msg], expected }));
 });
 
 // ============================================================
-// G16 — RESCHEDULE (40)
+// R15 — COLOQUIAL / TYPOS (25 nuevas)
 // ============================================================
-const G16Cases = [
-  'podemos cambiarla para el jueves?',
-  'me viene mejor la semana que viene',
-  'podemos mover la llamada al lunes?',
-  'mejor en 3 días si te va bien',
-  'mañana imposible, pasamos al viernes?',
-  'lo dejamos para otro día?',
-  'podemos hacerla la semana que viene?',
-  'me reagendas la llamada por favor?',
-  'puedes mover la fecha de la llamada?',
-  'cámbiamela para el martes que viene',
-  'pásala al jueves mejor, mañana imposible',
-  'la podemos hacer en 5 días?',
-  'mejor en 2 semanas?',
-  'cuando tengas hueco, reagenda',
-  'corre la fecha al lunes',
-  'aplaza la llamada por favor',
-  'puedo más tarde de esta semana, hoy no',
-  'pasamos al jueves, hoy imposible',
-  'me pasas a otra fecha?',
-  'mejor en 3 días que hoy',
-  'mira, mejor el lunes que el viernes',
-  'cambiamos de día? me viene mejor el miercoles',
-  'me empujas la llamada al jueves?',
-  'puedes desplazarla unos días?',
-  'reagéndala para esta semana próxima',
-  'movemos a la semana del 25?',
-  'mañana imposible, hablamos el lunes?',
-  'la cambias al sábado mejor?',
-  'me cuadra más el domingo',
-  'paso al jueves?',
-  'esta semana imposible, semana que viene',
-  'reagéndame por favor',
-  'puedes pasarla al otro miercoles?',
-  'no llego hoy, hacemos otro día',
-  'movemos al 23?',
-  'cuándo tienes hueco la semana que viene?',
-  'paso al jueves o viernes',
-  'la cambiamos al mes que viene?',
-  'reagendar mejor',
-  'la pasamos para el otro lunes',
+const R15 = [
+  ['marcos no llgo manana noseque', 'cancel_with_followup'],
+  ['xfa cancela mejor manana noo voy', 'cancel_with_followup'],
+  ['noo, no puedo, sorry', 'cancel_with_followup'],
+  ['imposibe llegar t', 'cancel_with_followup'],
+  ['llamadaa noooo puedoo', 'cancel_with_followup'],
+  ['nooo es imposib', 'cancel_with_followup'],
+  ['marcoss anula sf', 'cancel_with_followup'],
+  ['cnclla', 'cancel_with_followup'],
+  ['n llego', 'cancel_with_followup'],
+  ['anllaa cita pls', 'cancel_with_followup'],
+  ['cncl plis', 'cancel_with_followup'],
+  ['nada pues paso', 'cancel_with_followup'],
+  ['tio paso al final, gracias eh', 'cancel_no_followup'],
+  ['na ke nada paso, sigo solo', 'cancel_no_followup'],
+  ['noo si no me interesa al final', 'cancel_no_followup'],
+  ['noo q va al final paso', 'cancel_no_followup'],
+  ['ahi nos vemoss', 'no_action'],
+  ['ok voy, ahii toy', 'no_action'],
+  ['perfectoo bro, hasta manana', 'no_action'],
+  ['vle, ahii estoy', 'no_action'],
+  ['toi alli mañana', 'no_action'],
+  ['ok bro see u', 'no_action'],
+  ['ok hablamos pues', 'no_action'],
+  ['oook hasta manana', 'no_action'],
+  ['ya ya, ahi estoy', 'no_action'],
 ];
-G16Cases.forEach(msg => cases.push(leadOnly('G16-RESCHEDULE', `G16-${N()}`, msg, { expected: 'cancel_with_followup' })));
-
-// ============================================================
-// G17 — MIXED (40)
-// ============================================================
-const G17Cases = [
-  ['no puedo mañana, cuándo podemos quedar?', 'cancel_with_followup'],
-  ['sí voy, por cierto cuánto dura?', 'no_action'],
-  ['es por Zoom no? Voy a estar listo', 'no_action'],
-  ['no podré ir, gracias por todo igualmente', 'cancel_with_followup'],
-  ['ahí estoy, me pasas el link?', 'no_action'],
-  ['voy, qué tema vamos a ver?', 'no_action'],
-  ['perdóname pero no puedo asistir hoy', 'cancel_with_followup'],
-  ['no puedo hoy, me das una nueva fecha?', 'cancel_with_followup'],
-  ['voy, pero podemos hacerla 30min más tarde?', 'no_action'],
-  ['no puedo, tengo trabajo, lo dejamos para otra ocasión', 'cancel_with_followup'],
-  ['ahí estoy, me apunto algunas dudas?', 'no_action'],
-  ['cancela porfa, y dime qué precio tiene el programa', 'cancel_with_followup'],
-  ['voy, pero mejor si fuera más tarde', 'no_action'],
-  ['perdón, no puedo ir, me sabe mal', 'cancel_with_followup'],
-  ['me podrías decir el precio? Si es muy caro cancelo', 'no_action'],
-  ['no puedo mañana pero sigo interesado, cuándo podemos?', 'cancel_with_followup'],
-  ['sí voy mañana. Tengo preguntas sobre el plan, las vemos en la call?', 'no_action'],
-  ['cancela mañana, me sale reunión, podemos viernes?', 'cancel_with_followup'],
-  ['hola Marcos! Sí mañana ahí estaré, un saludo', 'no_action'],
-  ['oye, llevo el ordenador o con el móvil basta?', 'no_action'],
-  ['ahí me tienes, voy con dudas anotadas', 'no_action'],
-  ['voy a ir, gracias por todo igualmente', 'no_action'],
-  ['me alegro de hablar contigo, ahí estoy', 'no_action'],
-  ['vale gracias, mañana hablamos seguro', 'no_action'],
-  ['paso a confirmar y ahí me tienes', 'no_action'],
-  ['oye que no llego, cuándo puedes la próxima?', 'cancel_with_followup'],
-  ['no podré, sigo interesado eh', 'cancel_with_followup'],
-  ['gracias y bueno, cancela porfa', 'cancel_with_followup'],
-  ['voy seguro, pero por si acaso me mandas el zoom?', 'no_action'],
-  ['mira, no puedo ya. Es definitivo. Otra vez será', 'cancel_with_followup'],
-  ['ahí, ya tengo todo listo, gracias', 'no_action'],
-  ['oye marcos, mañana imposible, perdona', 'cancel_with_followup'],
-  ['ya tengo el calendario marcado, sí voy', 'no_action'],
-  ['no puedo ir, te explico luego el motivo', 'cancel_with_followup'],
-  ['voy, dudas tengo bastantes, me apunto?', 'no_action'],
-  ['cancela, mañana no llego seguro', 'cancel_with_followup'],
-  ['mañana no me viene, te aviso si quiero otra fecha', 'cancel_with_followup'],
-  ['todo confirmado, mañana hablamos', 'no_action'],
-  ['voy, me mandas el ID de Zoom?', 'no_action'],
-  ['no puedo, otra vez será, gracias', 'cancel_with_followup'],
-];
-G17Cases.forEach(([msg, expected]) => cases.push(leadOnly('G17-MIXED', `G17-${N()}`, msg, { expected })));
-
-// ============================================================
-// G18 — CONFIDENCE EDGE (40)
-// ============================================================
-const G18Cases = [
-  'veremos a ver si puedo',
-  'igual no llego a tiempo',
-  'no te aseguro nada',
-  'intento estar pero no prometo',
-  'veré si puedo, te confirmo en un rato',
-  '50/50 ahora mismo',
-  'eh no sé eh',
-  'creo que puedo, ya te confirmo',
-  'igual te aviso luego si llego',
-  'quizás llegue, no estoy seguro',
-  'ojalá pueda',
-  'a ver si llego',
-  'según vea voy o no',
-  'difícil pero lo intento',
-  'mira no te aseguro, hablamos por la mañana',
-  'voy a intentarlo, no te prometo nada',
-  'vamos a ver cómo voy de tiempo',
-  'no sé aún si voy a poder',
-  'depende del tráfico de salida',
-  'lo miro y luego te digo',
-  'tengo que ver agenda',
-  'no sé qué te diga',
-  'a ver si me organizo',
-  'lo miro y veo',
-  'depende de cómo vaya el trabajo',
-  'tengo dudas, ya te digo',
-  'no me comprometo aún',
-  'es probable pero no seguro',
-  'no estoy seguro de poder',
-  'depende de muchas cosas',
-  'tengo que ver, ya te digo',
-  'no sé qué decirte',
-  'igual sí igual no',
-  'depende del día',
-  'lo intentaré aunque me cuesta',
-  'no sé si voy a llegar bien',
-  'a ver lo que pasa',
-  'me mantengo abierto, a ver',
-  'no tengo seguro',
-  'lo veo dudoso pero veré',
-];
-G18Cases.forEach(msg => cases.push(leadOnly('G18-CONFIDENCE-EDGE', `G18-${N()}`, msg, { expected: 'no_action' })));
-
-// ============================================================
-// G19 — REGISTRO (30)
-// ============================================================
-const G19Cases = [
-  ['Estimado Marcos, le ruego me disculpe pero no podré asistir a la cita programada.', 'cancel_with_followup'],
-  ['Buenas tardes, le escribo para comunicarle que no podré asistir a nuestra llamada agendada. Disculpe.', 'cancel_with_followup'],
-  ['Estimado, confirmo mi asistencia. Saludos cordiales.', 'no_action'],
-  ['tio cancela porfi', 'cancel_with_followup'],
-  ['paso bro, voy con otro coach, ni me sigas escribiendo', 'cancel_no_followup'],
-  ['¿Podría confirmarme si la llamada continúa programada?', 'no_action'],
-  ['Hola Marcos. Mira tio, no voy a poder, lo dejamos para la próxima semana sí?', 'cancel_with_followup'],
-  ['Marcos, ha surgido una urgencia médica familiar. Lamento profundamente comunicarle que no podré.', 'cancel_with_followup'],
-  ['ke va imposible bro', 'cancel_with_followup'],
-  ['No asistiré.', 'cancel_with_followup'],
-  ['En representación del equipo solicito el reagendado', 'cancel_with_followup'],
-  ['Tronco no llego ni de coña, hablamos en otro momento', 'cancel_with_followup'],
-  ['Buenos días, le informo que debido a un imprevisto no me será posible asistir hoy.', 'cancel_with_followup'],
-  ['Estimado Marcos, declino formalmente la continuidad del programa. Atentamente.', 'cancel_no_followup'],
-  ['venga tio, ya hablamos cuando pueda', 'cancel_with_followup'],
-  ['quería comentarle que mejor reagendamos', 'cancel_with_followup'],
-  ['Por la presente comunico mi imposibilidad de asistir', 'cancel_with_followup'],
-  ['Marcos, le agradezco el seguimiento pero declino', 'cancel_no_followup'],
-  ['Cordialmente, tendré que cancelar la llamada', 'cancel_with_followup'],
-  ['Le informo que no procederé con la cita programada', 'cancel_with_followup'],
-  ['hola tronco, no llego eh', 'cancel_with_followup'],
-  ['marcos ke no voy', 'cancel_with_followup'],
-  ['Sirva la presente para confirmar la asistencia', 'no_action'],
-  ['Le ruego me confirme la disponibilidad de la sesión', 'no_action'],
-  ['Lamento profundamente desistir del programa', 'cancel_no_followup'],
-  ['ay tio paso totalmente, gracias', 'cancel_no_followup'],
-  ['Marcos por favor cancele mi suscripción al servicio', 'cancel_no_followup'],
-  ['Estimado, por favor proceda a la cancelación de mi cita', 'cancel_with_followup'],
-  ['Hola, quisiera reagendar para más adelante por favor', 'cancel_with_followup'],
-  ['Atendiendo a su mensaje, confirmo asistencia', 'no_action'],
-];
-G19Cases.forEach(([msg, expected]) => {
+R15.forEach(([msg, expected]) => {
   const opts = { expected };
-  if (expected === 'no_action' && !msg.toLowerCase().includes('confirm') && !msg.toLowerCase().includes('hoy')) {
-    opts.context = 'Recordatorio: mañana hablamos';
+  if (msg.includes('ahi') || msg.includes('toi') || msg.includes('vle') || msg.includes('ok bro') || msg.includes('oook') || msg.includes('ya ya') || msg.includes('hablamos') || msg.includes('perfectoo')) {
+    opts.context = 'Mañana hablamos';
   }
-  cases.push(leadOnly('G19-REGISTER', `G19-${N()}`, msg, opts));
+  cases.push(leadOnly('R15-COLOQUIAL', `R15-${N()}`, msg, opts));
 });
 
 // ============================================================
-// G20 — IDIOMAS (40)
+// R16 — RESCHEDULE (20 nuevas)
 // ============================================================
-const G20Cases = [
-  ['sorry Marcos, can\'t make it tomorrow', 'cancel_with_followup'],
-  ['sorry tio, no voy a poder hacer la call mañana', 'cancel_with_followup'],
-  ['I can\'t make it to the call', 'cancel_with_followup'],
-  ['no podré assistir a la trucada', 'cancel_with_followup'],
-  ['demà no puc Marcos, ho deixem per un altre dia', 'cancel_with_followup'],
-  ['desculpa Marcos não vou conseguir ir', 'cancel_with_followup'],
-  ['désolé je ne pourrai pas venir', 'cancel_with_followup'],
-  ['no la voy a hacer wey, me cae mal mañana', 'cancel_with_followup'],
-  ['che boludo no la pueod hacer mañana', 'cancel_with_followup'],
-  ['no call tomorrow, sorry', 'cancel_with_followup'],
-  ['scusa Marcos non riesco a venire', 'cancel_with_followup'],
-  ['sorry, kann nicht morgen', 'cancel_with_followup'],
-  ['que va Marcos, mañana ni de coña, dejémoslo pa otro día picha', 'cancel_with_followup'],
-  ['ezin dut bihar etorri, barkatu', 'cancel_with_followup'],
-  ['hi Marcos, will need to reschedule', 'cancel_with_followup'],
-  ['Hi sorry, my bad, can\'t make it', 'cancel_with_followup'],
-  ['can we move it to next week?', 'cancel_with_followup'],
-  ['I\'ll be late, sorry', 'no_action'],
-  ['Tomorrow doesn\'t work for me', 'cancel_with_followup'],
-  ['allons-y, je suis prêt', 'no_action'],
-  ['ho appuntamento medico, non posso', 'cancel_with_followup'],
-  ['no pasa nada, vou tar', 'no_action'],
-  ['cancele por favor, não vou conseguir', 'cancel_no_followup'],
-  ['ja no vull continuar, gràcies', 'cancel_no_followup'],
-  ['ya no me intereesa el programa wey', 'cancel_no_followup'],
-  ['can you reschedule for Tuesday?', 'cancel_with_followup'],
-  ['can we make it later today?', 'no_action'],
-  ['I\'m running late', 'no_action'],
-  ['I won\'t be able to attend', 'cancel_with_followup'],
-  ['perdone, hoje não dá', 'cancel_with_followup'],
-  ['todo perfecto, ahí estoy mañana', 'no_action'],
-  ['all set, see you tomorrow', 'no_action'],
-  ['ok perfecto', 'no_action'],
-  ['estoy listo bro!', 'no_action'],
-  ['vou tar', 'no_action'],
-  ['t\'écris pour annuler', 'cancel_with_followup'],
-  ['Bueno marcos imposible mañana', 'cancel_with_followup'],
-  ['gracias amigo voy a participar', 'no_action'],
-  ['I\'ll be there tomorrow!', 'no_action'],
-  ['eu vou estar, sem problemas', 'no_action'],
+const R16 = [
+  'me lo cambias para el viernes?',
+  'puedo moverla al miércoles?',
+  'mejor el lunes próximo',
+  'cámbiala al sábado mejor',
+  'me viene mejor pasado mañana',
+  'puedo el otro martes en vez de este?',
+  'reagéndame para principio de semana',
+  'mejor a finales de la semana próxima',
+  'puedes pasarla al jueves?',
+  'me cuadra mejor el día 25',
+  'cambio la fecha por favor',
+  'la podemos llevar al lunes 22?',
+  'me la pasas a otro día?',
+  'puedo en una semana?',
+  'mejor en 4 días',
+  'pásala dos días después',
+  'cambiamos la fecha mejor',
+  'reagéndamela en 10 días',
+  'me das otra fecha?',
+  'puedo más adelante esta semana?',
 ];
-G20Cases.forEach(([msg, expected]) => {
-  const opts = { expected };
-  if (expected === 'no_action') opts.context = 'Mañana hablamos';
-  cases.push(leadOnly('G20-LANGUAGE', `G20-${N()}`, msg, opts));
-});
+R16.forEach(msg => cases.push(leadOnly('R16-RESCHEDULE', `R16-${N()}`, msg, { expected: 'cancel_with_followup' })));
 
 // ============================================================
-// G21 — DELAY SNAP (30)
+// R17 — MIXED (20 nuevas)
 // ============================================================
-const G21Cases = [
-  'no puedo, recuérdame en 5 días por favor',
-  'no podré, vuélveme a llamar en 2 semanas',
-  'mejor en 10 días, esta semana imposible',
-  'cancela, mejor en 4 días',
-  'no puedo, recordame en 6 días',
-  'no puedo hoy, en 2 días te aviso',
-  'no puedo, en 1 semana hablamos',
-  'no puedo, hablamos en un mes',
-  'cancela, en 15 días vuelve a contactarme',
-  'no puedo mañana, en pasado-mañana mejor',
-  'no puedo, mejor el viernes que viene',
-  'no puedo, en un par de días te aviso',
-  'cancela y cuando puedas reagendamos',
-  'mejor en 3 o 4 días',
-  'cancela, en 9 días hablamos',
-  'cancela y en 8 días me escribes',
-  'no puedo, en 12 días te aviso',
-  'imposible esta semana, en 21 días?',
-  'cancela, en una semana y media te aviso',
-  'cancela, en menos de una semana llámame',
-  'cancela, esta noche te confirmo en 8 horas',
-  'no puedo, en 2 semanas exactas',
-  'cancela y en 30 días me contactas',
-  'cancela, en 4 días lo retomamos',
-  'no puedo, hablamos en 11 días',
-  'cancela, en una semana y dos días',
-  'no puedo, en aprox 5 días te contesto',
-  'cancela, después de mañana en 3 días',
-  'no podré, en 13 días vuelves a escribirme',
-  'no puedo, en 7 días me dices',
+const R17 = [
+  ['no podré ir mañana, gracias por todo', 'cancel_with_followup'],
+  ['voy, pero antes me pasas el link?', 'no_action'],
+  ['cancela mañana y dime nueva fecha', 'cancel_with_followup'],
+  ['allí estaré, me preparo dudas?', 'no_action'],
+  ['no llego, mañana es mal día, podemos otro?', 'cancel_with_followup'],
+  ['voy ahí, cuál es el formato?', 'no_action'],
+  ['perdona, no asisto, problemas familiares', 'cancel_with_followup'],
+  ['voy, llevo notas?', 'no_action'],
+  ['cancela, sigo abierto a hablar otro día', 'cancel_with_followup'],
+  ['confirmo asistencia y aviso dudas', 'no_action'],
+  ['no puedo ir hoy, gracias por entender', 'cancel_with_followup'],
+  ['ahí estaré con mi pareja también, ok?', 'no_action'],
+  ['cancela hoy, hablamos por whatsapp después', 'cancel_with_followup'],
+  ['voy, qué hago si llego tarde?', 'no_action'],
+  ['no asisto, lo siento mucho', 'cancel_with_followup'],
+  ['voy, tengo dudas sobre los pagos', 'no_action'],
+  ['perdona pero no voy, cuéntame cuándo podemos', 'cancel_with_followup'],
+  ['voy mañana, espero que vaya bien', 'no_action'],
+  ['cancela, escríbeme cuando tengas hueco', 'cancel_with_followup'],
+  ['voy, llevo el ipad, vale?', 'no_action'],
 ];
-G21Cases.forEach(msg => cases.push(leadOnly('G21-DELAY-SNAP', `G21-${N()}`, msg, { expected: 'cancel_with_followup' })));
+R17.forEach(([msg, expected]) => cases.push(leadOnly('R17-MIXED', `R17-${N()}`, msg, { expected })));
 
 // ============================================================
-// G22 — SYSTEM EDGE (25)
+// R18 — CONFIDENCE EDGE (20 nuevas)
 // ============================================================
-cases.push(
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'Hola q tal', dateAdded: mkTs(2) }],
-    apts: [], expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'no puedo a la llamada', dateAdded: mkTs(2) }],
-    apts: [], expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'pásame para reagendar porfa', dateAdded: mkTs(20) },
-      { direction: 'outbound', body: `Claro, ${RESCHEDULE_LINK}`, dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'gracias!', dateAdded: mkTs(2) },
-    ],
-    apts: [{ id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar', dateAdded: mkTs(10) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'reagendar', dateAdded: mkTs(30) },
-      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(25) },
-      { direction: 'inbound', body: 'gracias!', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'espera, cancela también esa nueva, no creo que pueda esta semana', dateAdded: mkTs(2) },
-    ],
-    apts: [{ id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar', dateAdded: mkTs(15) }],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no puedo asistir', dateAdded: mkTs(360) },
-      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(355) },
-      { direction: 'inbound', body: 'gracias', dateAdded: mkTs(2) },
-    ],
-    apts: [{ id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar', dateAdded: mkTs(120) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no puedo', dateAdded: mkTs(60 * 24 * 2) },
-      { direction: 'outbound', body: 'no pasa, hablamos', dateAdded: mkTs(60 * 24 * 2 - 30) },
-      { direction: 'inbound', body: 'vale gracias', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: '', attachments: ['https://example.com/photo.jpg'], dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'outbound', body: 'hola!', dateAdded: mkTs(60 * 24 * 30) },
-      { direction: 'inbound', body: 'hola', dateAdded: mkTs(60 * 24 * 30 - 5) },
-      { direction: 'outbound', body: 'qué tal estás?', dateAdded: mkTs(60 * 24 * 25) },
-      { direction: 'inbound', body: 'bien gracias', dateAdded: mkTs(60 * 24 * 25 - 5) },
-      { direction: 'outbound', body: 'te agendo una llamada?', dateAdded: mkTs(60 * 24 * 20) },
-      { direction: 'inbound', body: 'sí porfa', dateAdded: mkTs(60 * 24 * 20 - 5) },
-      { direction: 'outbound', body: 'recordatorio: mañana hablamos!', dateAdded: mkTs(60 * 24) },
-      { direction: 'inbound', body: 'no puedo al final, cancela porfa', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'vale Marcos', dateAdded: mkTs(60) },
-      { direction: 'outbound', body: 'Te paso el material adicional', dateAdded: mkTs(30) },
-      { direction: 'outbound', body: 'Mira esto también', dateAdded: mkTs(5) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: '😅', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no puedo', dateAdded: mkTs(360) },
-      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(355) },
-      { direction: 'inbound', body: 'gracias', dateAdded: mkTs(200) },
-      { direction: 'inbound', body: 'oye que al final no quiero tener la llamada', dateAdded: mkTs(2) },
-    ],
-    apts: [{ id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar', dateAdded: mkTs(300) }],
-    expected: 'cancel_with_followup', ids: 1,
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'cancela todo lo viejo', dateAdded: mkTs(60 * 24 * 5) },
-      { direction: 'inbound', body: 'vale ahí estoy', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'outbound', body: 'Recordatorio: llamada mañana a las 18h', dateAdded: mkTs(60) },
-      { direction: 'outbound', body: 'Si tienes algo que comentar antes, dime', dateAdded: mkTs(30) },
-      { direction: 'inbound', body: 'todo bien, mañana hablamos', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'no podré ir, cancela', dateAdded: mkTs(2) }],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'gracias por todo', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: Array.from({ length: 15 }, (_, i) => ({
-      direction: i % 2 === 0 ? 'outbound' : 'inbound',
-      body: i % 2 === 0 ? `mensaje coach ${i}` : `respuesta lead ${i}`,
-      dateAdded: mkTs(100 - i * 5),
-    })).concat([{ direction: 'inbound', body: 'no puedo mañana, cancela', dateAdded: mkTs(2) }]),
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'mira esto', dateAdded: mkTs(20) },
-      { direction: 'outbound', body: 'qué pasa?', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: '', attachments: ['https://example.com/voice.mp4'], dateAdded: mkTs(2) },
-    ],
-    expected: 'audio_needs_review',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: ' ', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'jajajajaja', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: '...', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'sí', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'inbound', body: 'mande?', dateAdded: mkTs(2) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [{ direction: 'outbound', body: 'recordatorio mañana', dateAdded: mkTs(60) }],
-    expected: 'no_action',
-  }),
-  exchange('G22-SYSTEM-EDGE', `G22-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no llego ehh', dateAdded: mkTs(120) },
-      { direction: 'outbound', body: 'sin problema, hablamos', dateAdded: mkTs(60) },
-      { direction: 'inbound', body: 'porfa ya cancela', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-);
+const R18 = [
+  'me lo estoy pensando aún',
+  'no me termina de convencer',
+  'no me da buena espina',
+  'es posible que llegue, no estoy seguro',
+  'igual no asisto, no sé',
+  'según vaya por la mañana',
+  'puede que sí, puede que no',
+  'lo veo dudoso',
+  'me lo planteo y te digo',
+  'no es probable, pero a ver',
+  'mejor decido por la mañana',
+  'quizá no pueda, no estoy fijo',
+  'lo intento, sin compromiso',
+  'a ver cómo me organizo',
+  'no me da pista, mañana veo',
+  'puede ser, pero no aseguro',
+  'lo veo difícil, no descarto',
+  'depende del día',
+  'me lo pensaré mañana',
+  'todo dependerá del trabajo',
+];
+R18.forEach(msg => cases.push(leadOnly('R18-CONFIDENCE-EDGE', `R18-${N()}`, msg, { expected: 'no_action' })));
 
 // ============================================================
-// G23 — CONFIRMACIONES SUTILES (30)
+// R19 — REGISTRO (15 nuevas)
 // ============================================================
-const G23Cases = [
-  ['✓', 'Recordatorio mañana'],
-  ['recibido', 'Confirmamos llamada mañana?'],
-  ['anotado', 'Te paso link mañana'],
-  ['clear', 'See you tomorrow'],
-  ['👍🏼', 'Recordatorio llamada mañana'],
-  ['roger that', 'Mañana a las 18h'],
-  ['all right', 'Confirmed for tomorrow'],
-  ['noted', 'See you tomorrow'],
-  ['🚀', 'Mañana cambiamos cosas'],
-  ['❤️', 'Gracias por tu confianza'],
-  ['👏', 'Cerrado para mañana'],
-  ['vamos 💪', 'Mañana la liamos'],
-  ['cool cool', 'See you tomorrow'],
-  ['👍👍', 'Recordatorio'],
-  ['😊', 'Te paso material'],
-  ['👌', 'Confirmamos?'],
-  ['ok mañana', 'Recordatorio'],
-  ['ahí mañana', 'Confirmada'],
-  ['hecho', 'Recordatorio mañana'],
-  ['voy', 'Mañana 18h'],
-  ['claro', 'Confirmada'],
-  ['ahí estamos', 'Mañana hablamos'],
-  ['fenómeno', 'Confirmada'],
-  ['acepto', 'Hora mañana 18h'],
-  ['hablamos', 'Confirmada'],
-  ['ya nos vemos', 'Mañana'],
-  ['👁️', 'Recordatorio'],
-  ['estamos', 'Confirmada'],
-  ['ok', 'Hora mañana'],
-  ['recibo', 'Llamada mañana'],
+const R19 = [
+  ['Cordial saludo Marcos, no podré asistir a la cita por motivos personales', 'cancel_with_followup'],
+  ['Buenos días, lamento informarle que debo cancelar nuestra reunión', 'cancel_with_followup'],
+  ['Estimado, confirmo presencia mañana', 'no_action'],
+  ['tio q va, no voy', 'cancel_with_followup'],
+  ['oye colega, mañana no llego', 'cancel_with_followup'],
+  ['Le confirmo la cancelación de mi cita por imprevisto', 'cancel_with_followup'],
+  ['Sus servicios ya no me interesan, dése de baja mis datos', 'cancel_no_followup'],
+  ['paso colega, voy con otro entrenador', 'cancel_no_followup'],
+  ['ay sis no voy, te dejo', 'cancel_with_followup'],
+  ['Atte, no podré asistir al evento programado', 'cancel_with_followup'],
+  ['hermano, no llego, lo siento', 'cancel_with_followup'],
+  ['Buenas tardes, anulación pendiente, lo dejamos para futuro', 'cancel_with_followup'],
+  ['ok jefe, mañana hablamos', 'no_action'],
+  ['Saludos cordiales, paso a confirmar mi presencia', 'no_action'],
+  ['mira bro, no me lo creo, no sigo', 'cancel_no_followup'],
 ];
-G23Cases.forEach(([msg, ctx]) => cases.push(leadOnly('G23-CONFIRM-SUBTLE', `G23-${N()}`, msg, { expected: 'no_action', context: ctx })));
-
-// ============================================================
-// G24 — LEGACY (3)
-// ============================================================
-cases.push(
-  {
-    category: 'G24-LEGACY', name: `G24-${N()}`,
-    messages: [
-      { direction: 'inbound', body: 'Hola buenas tardes!! He tenido cólico nefriticos! Y mañana voy al hospital. Una amiga uróloga me va a hacer unas pruebas', dateAdded: mkTs(8) },
-      { direction: 'inbound', body: 'Lo dejamos para otro di por favor? Gracias', dateAdded: mkTs(6) },
-    ],
-    appointments: [APT_1], expectedIntent: 'cancel_with_followup',
-  },
-  {
-    category: 'G24-LEGACY', name: `G24-${N()}`,
-    messages: [
-      { direction: 'inbound', body: 'Marcos no creo que pueda hoy', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'ah espera sí, voy', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'no, mejor lo dejo, no me apetece', dateAdded: mkTs(10) },
-      { direction: 'inbound', body: 'no espera, vale, al final voy sí', dateAdded: mkTs(2) },
-    ],
-    appointments: [APT_1], expectedIntent: 'no_action',
-  },
-  {
-    category: 'G24-LEGACY', name: `G24-${N()}`,
-    messages: [
-      { direction: 'inbound', body: 'Marcos no voy a poder ir a la llamada de mañana, lo siento mucho', dateAdded: mkTs(2) },
-    ],
-    appointments: [APT_1], expectedIntent: 'cancel_with_followup',
-  },
-);
-
-// ============================================================
-// G25 — DELAY VS CANCEL (60)
-// ============================================================
-const G25Retrasos = [
-  'no podré llegar a tiempo lo siento',
-  'no llegaré puntual a la llamada',
-  'no podré llegar puntual hoy',
-  'llego tarde, perdona',
-  'llegaré tarde',
-  'voy a llegar tarde',
-  'llego un poco tarde',
-  'me retraso 10 min',
-  'voy con 15 min de retraso',
-  'me retrasaré un poco, perdona',
-  'me sale algo, llego un poco tarde',
-  'no llego al inicio, entro a mitad',
-  'puedo entrar 5 min tarde?',
-  'se me hace tarde, voy a tardar 15 min',
-  'estoy atrapado en el tráfico, llego tarde',
-  'salgo ahora del trabajo, voy con retraso',
-  'es 10 minutos tarde está bien?',
-  'perdona el retraso, llego en 10',
-  'no podré llegar a tiempo pero voy',
-  'voy con retraso pero llego',
-  'tengo un poco de atasco, voy tarde',
-  'salgo a las 18 y llego justo después',
-  'es un poco tarde para mí, llego en 20',
-  'voy a llegar con retraso pero ahí estoy',
-  'voy tarde pero conecto, no canceles',
-  'me he atrasado, llego 15 min después',
-  'voy a llegar después de la hora pero entro',
-  'no puedo a la hora pero entro a mitad',
-  'llego 20 minutos tarde, perdona',
-  'llegaré con retraso pero asistiré',
-];
-G25Retrasos.forEach(msg => cases.push(leadOnly('G25-DELAY-VS-CANCEL', `G25-${N()}`, msg, { expected: 'no_action' })));
-
-const G25Cancels = [
-  'no llego a la llamada',
-  'no podré ir mañana',
-  'no podré asistir hoy',
-  'me es imposible asistir',
-  'al final no voy a poder',
-  'no me será posible asistir',
-  'no podré conectarme',
-  'no voy a poder ir',
-  'me cancelo la llamada',
-  'no podré, lo cancela',
-];
-G25Cancels.forEach(msg => cases.push(leadOnly('G25-DELAY-VS-CANCEL', `G25-${N()}`, msg, { expected: 'cancel_with_followup' })));
-
-const G25Mixed = [
-  ['llego tarde y mejor cancela', 'cancel_with_followup'],
-  ['no llego a tiempo, mejor reagenda', 'cancel_with_followup'],
-  ['llego tarde, lo dejamos para otro día', 'cancel_with_followup'],
-  ['no podré llegar a tiempo, mejor cancela', 'cancel_with_followup'],
-  ['voy con 30 min de retraso, llego al final', 'no_action'],
-  ['llego un poco tarde, en 20 min estoy', 'no_action'],
-  ['puedo conectarme tarde a la llamada?', 'no_action'],
-  ['llego con 5 min de retraso pero ahí estoy', 'no_action'],
-  ['voy tarde así que mejor cancela', 'cancel_with_followup'],
-  ['llego una hora tarde, no pasa nada?', 'no_action'],
-];
-G25Mixed.forEach(([msg, expected]) => cases.push(leadOnly('G25-DELAY-VS-CANCEL', `G25-${N()}`, msg, { expected })));
-
-cases.push(
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no podré llegar a tiempo lo siento', dateAdded: mkTs(20) },
-      { direction: 'outbound', body: '¿prefieres moverla o llegas un poco tarde?', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'si es 10 minutos tarde está bien', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no podré llegar a tiempo', dateAdded: mkTs(20) },
-      { direction: 'outbound', body: '¿prefieres moverla o llegas tarde?', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'mejor muévela, no llego a la hora', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'llegaré 10 min tarde', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'al final no puedo, cancela mejor', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'voy a llegar tarde', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'pero llego, no canceles', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'me retraso 20 min', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'puedes esperarme un poco?', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'voy con retraso por trabajo', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'al final voy a tener que cancelar mejor', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'salgo tarde del cole', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'no me da tiempo, no llego, cancela', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'me retraso 10', dateAdded: mkTs(20) },
-      { direction: 'outbound', body: 'no pasa nada, te espero', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'genial gracias', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'voy a llegar tarde', dateAdded: mkTs(30) },
-      { direction: 'inbound', body: 'mejor cancela y movemos', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G25-DELAY-VS-CANCEL', `G25-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no llego en hora hoy', dateAdded: mkTs(30) },
-      { direction: 'outbound', body: 'es retraso o no asistes?', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'es solo retraso, llego en 15', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-);
-
-// ============================================================
-// G26 — WILD CASES (~150)
-// ============================================================
-
-const G26A = [
-  ['estoy muy mal hoy, no me veo capaz', 'cancel_with_followup'],
-  ['me siento fatal, no puedo más', 'cancel_with_followup'],
-  ['estoy llorando, perdona, no puedo', 'cancel_with_followup'],
-  ['estoy hundido marcos, no llego', 'cancel_with_followup'],
-  ['no me sale hablar hoy', 'cancel_with_followup'],
-  ['estoy de bajón, no puedo hoy', 'cancel_with_followup'],
-  ['perdóname pero no puedo, estoy mal', 'cancel_with_followup'],
-  ['me ha pasado algo grave, no podré ir', 'cancel_with_followup'],
-  ['no soy capaz emocionalmente hoy', 'cancel_with_followup'],
-  ['estoy roto hoy, lo siento', 'cancel_with_followup'],
-  ['necesito unos días, perdona', 'cancel_with_followup'],
-  ['hoy no puedo, estoy en proceso de duelo', 'cancel_with_followup'],
-  ['me ha dejado mi pareja, no podré hoy', 'cancel_with_followup'],
-  ['fallecimiento en la familia, no podré ir', 'cancel_with_followup'],
-  ['no me veo bien para hablar hoy, lo dejamos', 'cancel_with_followup'],
-];
-G26A.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26A-${N()}`, msg, { expected, delay: 7 })));
-
-const G26B = [
-  ['jajaja marcos cancela que estoy de fiesta', 'cancel_with_followup'],
-  ['tio paso, voy a tomar cervezas con los colegas', 'cancel_with_followup'],
-  ['jajajaja no me apetece, mañana no voy', 'cancel_with_followup'],
-  ['marcos cancela porfa, hoy no estoy de humor', 'cancel_with_followup'],
-  ['estoy de resaca brutal, no llego', 'cancel_with_followup'],
-  ['jaja perdona no puedo, tengo planes', 'cancel_with_followup'],
-  ['estoy planchando, llego tarde', 'no_action'],
-  ['estoy comiendo, voy en 10 min', 'no_action'],
-  ['cocinando ahora, llego justo', 'no_action'],
-  ['oye q estoy en el bar jaja, mañana hablamos', 'cancel_with_followup'],
-  ['en el gym, llego puntual no preocupes', 'no_action'],
-  ['paseando al perro, llego ya', 'no_action'],
-];
-G26B.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26B-${N()}`, msg, { expected })));
-
-const G26C = [
-  ['MARCOS NO ME ESCRIBAS MÁS', 'cancel_no_followup'],
-  ['DEJA DE MOLESTAR', 'cancel_no_followup'],
-  ['NO VOY, BÓRRAME', 'cancel_no_followup'],
-  ['Hostia tio, déjame en paz', 'cancel_no_followup'],
-  ['Vete a la mierda, no me escribas más', 'cancel_no_followup'],
-  ['Sois pesados, ya no me interesa', 'cancel_no_followup'],
-  ['ESTOY HARTO DE MENSAJES', 'cancel_no_followup'],
-  ['Joder cancelad ya, no quiero saber nada', 'cancel_no_followup'],
-  ['NO ME CONTACTEIS MÁS', 'cancel_no_followup'],
-  ['borra mi puto número de la lista', 'cancel_no_followup'],
-];
-G26C.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26C-${N()}`, msg, { expected })));
-
-const G26D = [
-  ['espera', 'no_action'],
-  ['déjame ver', 'no_action'],
-  ['te llamo yo en un rato', 'no_action'],
-  ['ah', 'no_action'],
-  ['eh?', 'no_action'],
-  ['un momento', 'no_action'],
-  ['ahora vuelvo', 'no_action'],
-  ['ya te digo', 'no_action'],
-  ['lo veo', 'no_action'],
-  ['te confirmo en breve', 'no_action'],
-  ['déjame mirar la agenda', 'no_action'],
-  ['ahora no puedo, te aviso', 'no_action'],
-];
-G26D.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26D-${N()}`, msg, { expected })));
-
-const G26E = [
-  ['no me funciona Zoom', 'no_action'],
-  ['no me entra al meet, ayuda', 'no_action'],
-  ['llevo 10 min intentando entrar, no me deja', 'no_action'],
-  ['no me carga la cámara', 'no_action'],
-  ['se me ha colgado el ordenador', 'no_action'],
-  ['no tengo internet hoy, llego cuando vuelva', 'no_action'],
-  ['mi micro no funciona, escríbeme y hablamos por aquí', 'no_action'],
-  ['no me sale el link de la call', 'no_action'],
-  ['Zoom me pide actualizar, dame un min', 'no_action'],
-  ['el meet no me deja entrar, te llamo?', 'no_action'],
-  ['no puedo entrar, dame otro link?', 'no_action'],
-  ['nada, no me deja, sigues conectado?', 'no_action'],
-];
-G26E.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26E-${N()}`, msg, { expected })));
-
-const G26F = [
-  ['mejor hablamos por teléfono?', 'no_action'],
-  ['en vez de zoom puede ser whatsapp?', 'no_action'],
-  ['podemos hablar por audio en lugar de video?', 'no_action'],
-  ['te llamo yo en vez del meet?', 'no_action'],
-  ['mejor por meet que zoom?', 'no_action'],
-  ['cambiamos a Discord?', 'no_action'],
-  ['Skype mejor?', 'no_action'],
-  ['hablamos por teams?', 'no_action'],
-  ['te llamo al móvil mejor?', 'no_action'],
-  ['mejor sin cámara, audio solo, ok?', 'no_action'],
-];
-G26F.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26F-${N()}`, msg, { expected })));
-
-cases.push(
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'oye una cosa', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'es que', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'no llego eh', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'mira', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'tengo dudas si voy', dateAdded: mkTs(15) },
-      { direction: 'inbound', body: 'al final sí, voy', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'hola', dateAdded: mkTs(30) },
-      { direction: 'inbound', body: 'quería decirte', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'que no llego mañana', dateAdded: mkTs(10) },
-      { direction: 'inbound', body: 'no podré, perdona', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'oye', dateAdded: mkTs(60) },
-      { direction: 'inbound', body: 'puedes la semana que viene?', dateAdded: mkTs(40) },
-      { direction: 'inbound', body: 'es que esta no voy a poder', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'mejor reagendar', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'qué tal marcos?', dateAdded: mkTs(60) },
-      { direction: 'outbound', body: 'todo bien, mañana hablamos no?', dateAdded: mkTs(40) },
-      { direction: 'inbound', body: 'sí pero', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'tendré que cancelar al final', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'voy mañana', dateAdded: mkTs(120) },
-      { direction: 'outbound', body: 'perfect, hasta entonces', dateAdded: mkTs(110) },
-      { direction: 'inbound', body: 'oye espera', dateAdded: mkTs(10) },
-      { direction: 'inbound', body: 'tendré que pasarla a otro día', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_with_followup',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'cancela', dateAdded: mkTs(60) },
-      { direction: 'outbound', body: 'ok, te paso link de reagendar', dateAdded: mkTs(55) },
-      { direction: 'inbound', body: 'gracias', dateAdded: mkTs(50) },
-      { direction: 'inbound', body: 'aunque', dateAdded: mkTs(40) },
-      { direction: 'inbound', body: 'al final podré', dateAdded: mkTs(30) },
-      { direction: 'inbound', body: 'sí voy mañana, no cambies nada', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'no me llega el link', dateAdded: mkTs(30) },
-      { direction: 'inbound', body: 'me lo mandas?', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'porfa', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'es por meet o zoom?', dateAdded: mkTs(30) },
-      { direction: 'outbound', body: 'meet, te paso link', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'perfecto', dateAdded: mkTs(2) },
-    ],
-    expected: 'no_action',
-  }),
-  exchange('G26-WILD', `G26G-${N()}`, {
-    messages: [
-      { direction: 'inbound', body: 'mira marcos', dateAdded: mkTs(60) },
-      { direction: 'inbound', body: 'esto del coaching', dateAdded: mkTs(50) },
-      { direction: 'inbound', body: 'creo que no es para mí', dateAdded: mkTs(20) },
-      { direction: 'inbound', body: 'paso definitivamente', dateAdded: mkTs(2) },
-    ],
-    expected: 'cancel_no_followup',
-  }),
-);
-
-const G26H = [
-  ['MAÑANA NO VOY', 'cancel_with_followup'],
-  ['CANCELA PORFAVOR', 'cancel_with_followup'],
-  ['NO PUEDO IR!!!!!', 'cancel_with_followup'],
-  ['??????', 'no_action'],
-  ['!!!!!', 'no_action'],
-  ['¬¬', 'no_action'],
-  ['marcos!!!!!!!', 'no_action'],
-  ['NO LLEGO HOY', 'cancel_with_followup'],
-  ['CONFIRMO!', 'no_action'],
-  ['VAMOSSSSSS', 'no_action'],
-];
-G26H.forEach(([msg, expected]) => {
+R19.forEach(([msg, expected]) => {
   const opts = { expected };
   if (expected === 'no_action') opts.context = 'Recordatorio mañana';
-  cases.push(leadOnly('G26-WILD', `G26H-${N()}`, msg, opts));
+  cases.push(leadOnly('R19-REGISTER', `R19-${N()}`, msg, opts));
 });
 
-const G26I = [
-  ['hola mama', 'no_action'],
-  ['mañana llegas a comer?', 'no_action'],
-  ['te he reenviado el documento, mira', 'no_action'],
-  ['oye pásate por aquí cuando puedas', 'no_action'],
-  ['te llamo luego, ahora ocupado', 'no_action'],
-  ['compra leche al volver porfa', 'no_action'],
-  ['perdona, mensaje equivocado', 'no_action'],
-  ['ay perdón, te llamaba a ti?', 'no_action'],
+// ============================================================
+// R20 — IDIOMAS (20 nuevas)
+// ============================================================
+const R20 = [
+  ['hi sorry, can\'t do tomorrow', 'cancel_with_followup'],
+  ['I need to reschedule please', 'cancel_with_followup'],
+  ['can we do next week?', 'cancel_with_followup'],
+  ['sorry won\'t make it', 'cancel_with_followup'],
+  ['sou de Portugal, não posso amanhã', 'cancel_with_followup'],
+  ['no puc demà, hauré de cancel·lar', 'cancel_with_followup'],
+  ['nessun problema, ci sarò', 'no_action'],
+  ['merci, j\'y serai', 'no_action'],
+  ['désolé je dois annuler', 'cancel_with_followup'],
+  ['cant make it tomorrow sorry', 'cancel_with_followup'],
+  ['I won\'t be available', 'cancel_with_followup'],
+  ['sorry, mañana no puedo, otra fecha?', 'cancel_with_followup'],
+  ['have to cancel, sorry', 'cancel_with_followup'],
+  ['I\'ll see you tomorrow!', 'no_action'],
+  ['demà ho deixem', 'cancel_with_followup'],
+  ['amanhã não vai dar', 'cancel_with_followup'],
+  ['I\'m good, see you', 'no_action'],
+  ['vou estar, sem stress', 'no_action'],
+  ['hi! can we move it?', 'cancel_with_followup'],
+  ['perfetto, ci vediamo', 'no_action'],
 ];
-G26I.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26I-${N()}`, msg, { expected })));
+R20.forEach(([msg, expected]) => {
+  const opts = { expected };
+  if (expected === 'no_action') opts.context = 'Tomorrow we talk';
+  cases.push(leadOnly('R20-LANGUAGE', `R20-${N()}`, msg, opts));
+});
 
-const G26J = [
-  ['tengo que ir si o si verdad?', 'no_action'],
-  ['qué pasa si no voy?', 'no_action'],
-  ['marcos.. la verdad es que..', 'no_action'],
-  ['lo estoy pensando', 'no_action'],
-  ['no me convence mucho la idea', 'no_action'],
-  ['hablamos en otro momento mejor', 'cancel_with_followup'],
-  ['oye no sé qué hacer la verdad', 'no_action'],
-  ['no estoy convencido', 'no_action'],
-  ['mejor lo hablamos por aquí', 'cancel_with_followup'],
-  ['todo bien? Me parece bien hoy', 'no_action'],
-  ['vale me lo planteo', 'no_action'],
-  ['confirma de nuevo cuándo es exactamente', 'no_action'],
-  ['estoy dudando si seguir', 'no_action'],
-  ['quizás no sea el momento ahora', 'no_action'],
-  ['va, lo intento', 'no_action'],
+// ============================================================
+// R21 — DELAY SNAP (15 nuevas)
+// ============================================================
+const R21 = [
+  'no puedo, recuérdame el sábado',
+  'cancela, hablamos en 8 días',
+  'no puedo, dame 4 días',
+  'no podré, en 11 días te aviso',
+  'cancela y volvemos en 6 días',
+  'no llego, hablamos el viernes que viene',
+  'no puedo, recordame en 5 días',
+  'cancela, en 2 semanas hablamos',
+  'no puedo, en 10 días me dices',
+  'mejor en 9 días',
+  'cancela, retoma en 30 días',
+  'no puedo, hablamos en 14 días',
+  'cancela, en 3 días te respondo',
+  'no podré, dame 7 días',
+  'recordame en 12 días',
 ];
-G26J.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26J-${N()}`, msg, { expected })));
+R21.forEach(msg => cases.push(leadOnly('R21-DELAY-SNAP', `R21-${N()}`, msg, { expected: 'cancel_with_followup' })));
 
-const G26K = [
-  ['si es muy caro no voy a hacer la call', 'no_action'],
-  ['cuánto cuesta el programa? Si no me sale lo cancelamos', 'no_action'],
-  ['necesito saber el precio antes', 'no_action'],
-  ['si está fuera de mi presupuesto cancelo', 'no_action'],
-  ['precio?', 'no_action'],
-  ['cuánto pides?', 'no_action'],
-  ['rango de precios?', 'no_action'],
-  ['inversión total?', 'no_action'],
-  ['cuál es la tarifa?', 'no_action'],
-  ['cuánto vale meterme?', 'no_action'],
-];
-G26K.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26K-${N()}`, msg, { expected })));
+// ============================================================
+// R22 — SYSTEM EDGE (15 nuevas)
+// ============================================================
+cases.push(
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: 'qué tal todo?', dateAdded: mkTs(2) }],
+    apts: [], expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: 'cancelo todo', dateAdded: mkTs(2) }],
+    apts: [], expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'inbound', body: 'mejor lo movemos', dateAdded: mkTs(20) },
+      { direction: 'outbound', body: `Vale, ${RESCHEDULE_LINK}`, dateAdded: mkTs(15) },
+      { direction: 'inbound', body: 'ya está cambiado', dateAdded: mkTs(2) },
+    ],
+    apts: [{ id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(3), calendarName: 'Reagendar', dateAdded: mkTs(10) }],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'inbound', body: 'cancelo', dateAdded: mkTs(40) },
+      { direction: 'outbound', body: `${RESCHEDULE_LINK}`, dateAdded: mkTs(35) },
+      { direction: 'inbound', body: 'ya cambié!', dateAdded: mkTs(20) },
+      { direction: 'inbound', body: 'pero al final ese nuevo día tampoco, cancela también', dateAdded: mkTs(2) },
+    ],
+    apts: [{ id: 'evt_NEW_RESCHEDULED', startTime: mkFutureTs(2), calendarName: 'Reagendar', dateAdded: mkTs(25) }],
+    expected: 'cancel_with_followup',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: '', attachments: ['https://example.com/foto.jpg'], dateAdded: mkTs(2) }],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: '   ', dateAdded: mkTs(2) }],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: 'qué', dateAdded: mkTs(2) }],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: '?!', dateAdded: mkTs(2) }],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [{ direction: 'inbound', body: 'jeje', dateAdded: mkTs(2) }],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'outbound', body: 'recordatorio importante mañana', dateAdded: mkTs(60) },
+      { direction: 'inbound', body: 'gracias, ahí estaré sin falta', dateAdded: mkTs(2) },
+    ],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'inbound', body: 'no puedo hoy', dateAdded: mkTs(60 * 24 * 3) },
+      { direction: 'outbound', body: 'sin problema', dateAdded: mkTs(60 * 24 * 3 - 30) },
+      { direction: 'inbound', body: 'todo bien, mañana hablamos seguro', dateAdded: mkTs(2) },
+    ],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'inbound', body: 'me da igual la fecha, lo importante es hablar', dateAdded: mkTs(2) },
+    ],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: Array.from({length: 20}, (_, i) => ({
+      direction: i % 2 === 0 ? 'inbound' : 'outbound',
+      body: `mensaje ${i}`,
+      dateAdded: mkTs(120 - i * 5),
+    })).concat([{direction: 'inbound', body: 'al final no llego mañana, cancela porfa', dateAdded: mkTs(2)}]),
+    expected: 'cancel_with_followup',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'inbound', body: 'oye, dudas sobre el método antes de la call?', dateAdded: mkTs(20) },
+      { direction: 'outbound', body: 'claro, dime', dateAdded: mkTs(10) },
+      { direction: 'inbound', body: 'son varias, pero mañana las vemos, gracias', dateAdded: mkTs(2) },
+    ],
+    expected: 'no_action',
+  }),
+  exchange('R22-SYSTEM-EDGE', `R22-${N()}`, {
+    messages: [
+      { direction: 'outbound', body: 'mañana hablamos eh', dateAdded: mkTs(30) },
+      { direction: 'outbound', body: 'recuerda traer cosas', dateAdded: mkTs(20) },
+      { direction: 'outbound', body: 'cualquier cosa avisas', dateAdded: mkTs(10) },
+      { direction: 'inbound', body: 'voy tranquilo, gracias por avisar', dateAdded: mkTs(2) },
+    ],
+    expected: 'no_action',
+  }),
+);
 
-const G26L = [
-  ['voy yo a la otra persona, lo cubro', 'no_action'],
-  ['mi pareja también puede asistir?', 'no_action'],
-  ['puedo grabar la llamada?', 'no_action'],
-  ['vienen mis hijos contigo, no problema?', 'no_action'],
-  ['te paso a mi nutricionista para que también esté', 'no_action'],
-  ['hay descuento por pareja?', 'no_action'],
-  ['me dais factura?', 'no_action'],
-  ['lo pago a plazos?', 'no_action'],
-  ['cuántas sesiones son?', 'no_action'],
-  ['empezamos cuándo?', 'no_action'],
-  ['quiero saber si vale la pena para mi caso', 'no_action'],
-  ['estoy embarazada, puedo hacer el programa?', 'no_action'],
-  ['soy vegano, esto vale?', 'no_action'],
-  ['tengo lesión de espalda, sirve?', 'no_action'],
-  ['ya cancelé por la web', 'cancel_with_followup'],
+// ============================================================
+// R23 — CONFIRMACIONES SUTILES (15 nuevas)
+// ============================================================
+const R23 = [
+  ['mañana sin falta', 'Recordatorio'],
+  ['todo OK', 'Mañana 18h'],
+  ['gracias por el aviso', 'Recordatorio mañana'],
+  ['fenómeno', 'Confirmamos?'],
+  ['venga venga', 'Mañana hablamos'],
+  ['ahí estoy seguro', 'Confirmada'],
+  ['totalmente', 'Mañana 19h'],
+  ['oki doki', 'Recordatorio'],
+  ['todo perfecto', 'Confirmamos llamada'],
+  ['mañana al pie del cañón', 'Confirmada'],
+  ['hasta mañana entonces', 'Llamada mañana'],
+  ['👀', 'Recordatorio'],
+  ['oki!', 'Mañana hablamos'],
+  ['hablamos mañana entonces', 'Confirmada'],
+  ['fenómeno bro', 'Confirmamos'],
 ];
-G26L.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26L-${N()}`, msg, { expected })));
+R23.forEach(([msg, ctx]) => cases.push(leadOnly('R23-CONFIRM-SUBTLE', `R23-${N()}`, msg, { expected: 'no_action', context: ctx })));
 
-const G26M = [
-  ['?', 'no_action'],
-  ['...', 'no_action'],
-  ['a', 'no_action'],
-  ['x', 'no_action'],
-  ['pq', 'no_action'],
-  ['no', 'no_action'],
-  ['ya', 'no_action'],
-  ['k', 'no_action'],
-  ['q', 'no_action'],
-  ['😶', 'no_action'],
+// ============================================================
+// R25 — DELAY VS CANCEL (30 nuevas — CRÍTICO por el fix reciente)
+// ============================================================
+const R25Retrasos = [
+  'oye que llego con retraso',
+  'voy tarde, perdón',
+  'estoy en el metro, llego tarde',
+  'voy a llegar 5 min después',
+  'me ha pillado el atasco, llego en 15',
+  'salgo ahora, llego con 10 min de retraso',
+  'no llego puntual, pero voy',
+  'tarde llego, no canceles',
+  'voy con tardanza',
+  'me he liado y llego tarde',
+  'al final llego justo después de la hora',
+  'voy tirando pero con retraso',
+  'me retraso un poco, ya casi',
+  'estaré tarde pero llego',
+  'tarde, pero ahí voy',
 ];
-G26M.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26M-${N()}`, msg, { expected })));
+R25Retrasos.forEach(msg => cases.push(leadOnly('R25-DELAY-VS-CANCEL', `R25-${N()}`, msg, { expected: 'no_action' })));
 
-const G26N = [
-  ['Marcos, mira, te cuento. Llevo dos semanas dándole vueltas y al final he decidido que no es el momento para mí entrar en el programa. He estado mirando otros enfoques también y aunque entiendo el tuyo, ahora mismo no veo que me cuadre con mi rutina actual. Te agradezco mucho todo el tiempo que has invertido en mí pero prefiero pausar esto. Si en el futuro cambian las cosas ya te escribiré. Gracias por todo y suerte!', 'cancel_no_followup'],
-  ['Hola Marcos, primero quería agradecerte la paciencia. He estado hablando con mi pareja y la situación familiar no me permite empezar ahora mismo. Mi madre está delicada de salud y voy a tener que volcarme en eso las próximas semanas. Lamento mucho cancelar la llamada de mañana, espero que entiendas. Cuando esté un poco más estable la situación, te vuelvo a escribir y miramos cómo seguir.', 'cancel_with_followup'],
-  ['Buenos días Marcos. Quería confirmarte que mañana ahí estaré sin falta. He estado preparando todo lo que me mandaste, he visto el video también y la verdad que me encanta el enfoque que tenéis. Tengo unas dudas que te quiero plantear mañana sobre el método y sobre el seguimiento de las primeras semanas, pero todo bien. Hasta mañana!', 'no_action'],
-  ['Marcos, ha sido una semana de locos, no he podido prepararme nada. Tengo el trabajo a tope, mis hijos enfermos y mi marido fuera de viaje. La verdad no estoy en mi mejor momento y no me veo capaz de tener la llamada mañana porque no podré conectar tranquila. Cancela por favor y cuando todo se calme te aviso para retomar. Mil disculpas por los inconvenientes.', 'cancel_with_followup'],
-  ['Oye Marcos, una cosa, mira es que llevo desde ayer pensando en lo de la inversión. Te quería decir que sí estoy interesado pero necesito digerirlo bien. Mañana en la llamada vamos a poder ver bien todos los números y si me das un par de días después para decidir? No quiero comprometerme a algo y luego no estar 100% en ello. Mañana ahí estaré seguro, solo eso quería decirte.', 'no_action'],
+const R25Cancels = [
+  'no llego hoy',
+  'no llego mañana',
+  'no llego a la sesión',
+  'no llegaré, perdona',
+  'no llego, lo dejamos',
+  'no voy a llegar, anula',
+  'mañana no llego',
+  'no llego seguro, cancela',
+  'al final no llego',
+  'no llego hoy, cancela mejor',
 ];
-G26N.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26N-${N()}`, msg, { expected })));
+R25Cancels.forEach(msg => cases.push(leadOnly('R25-DELAY-VS-CANCEL', `R25-${N()}`, msg, { expected: 'cancel_with_followup' })));
 
-const G26O = [
-  ['ay sí, súper ilusionado para la llamada eh', 'no_action'],
-  ['encantado de hablar contigo mañana 🙄', 'no_action'],
-  ['claro que voy, ni te lo pierdas eh', 'no_action'],
-  ['oh sí mañana, qué ilu', 'no_action'],
-  ['perfecto, justo lo que necesitaba en mi semana', 'no_action'],
-  ['ya tengo todo listo para que me vendas algo más', 'no_action'],
-  ['cuántos más mensajes esperaba recibir', 'no_action'],
-  ['justo lo que me apetece, una llamada de ventas', 'no_action'],
+const R25Mixed = [
+  ['llego tarde y necesito reagendar', 'cancel_with_followup'],
+  ['voy con retraso pero ahí estoy', 'no_action'],
+  ['llego 5 min tarde, no canceles', 'no_action'],
+  ['llego con retraso largo, mejor cancela', 'cancel_with_followup'],
+  ['retraso brutal, no llego', 'cancel_with_followup'],
 ];
-G26O.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26O-${N()}`, msg, { expected, context: 'Mañana hablamos!' })));
+R25Mixed.forEach(([msg, expected]) => cases.push(leadOnly('R25-DELAY-VS-CANCEL', `R25-${N()}`, msg, { expected })));
 
-const G26P = [
-  ['[Reenviado de Juan] mira esto que me ha pasado', 'no_action'],
-  ['mira lo que me han dicho en otro coach', 'no_action'],
-  ['mira esta captura, qué te parece?', 'no_action'],
-  ['un amigo me ha contado esto', 'no_action'],
-  ['te reenvío esto que recibí, qué dices?', 'no_action'],
+// ============================================================
+// R26 — WILD (40 nuevas)
+// ============================================================
+
+// R26A — Emocional (5)
+const R26A = [
+  'estoy con depresión, no me veo hoy',
+  'tengo crisis personal, perdona',
+  'hoy estoy emocional, mejor otro día',
+  'me siento devastado, no puedo',
+  'paso por momento duro, no llego',
 ];
-G26P.forEach(([msg, expected]) => cases.push(leadOnly('G26-WILD', `G26P-${N()}`, msg, { expected })));
+R26A.forEach(msg => cases.push(leadOnly('R26-WILD', `R26A-${N()}`, msg, { expected: 'cancel_with_followup' })));
+
+// R26B — Bromas (5)
+const R26B = [
+  ['voy a estar tomando algo con amigos', 'cancel_with_followup'],
+  ['noche loca anoche, llego justo', 'no_action'],
+  ['en casa de amigos, no me da tiempo, cancela', 'cancel_with_followup'],
+  ['en barbacoa familiar, ahí me ves después', 'no_action'],
+  ['jaja mira no estoy de humor, dejémoslo', 'cancel_with_followup'],
+];
+R26B.forEach(([msg, expected]) => cases.push(leadOnly('R26-WILD', `R26B-${N()}`, msg, { expected })));
+
+// R26C — Enfado (3)
+const R26C = [
+  'JODER YA, NO ME ESCRIBAS MÁS',
+  'estoy harto de tantos mensajes',
+  'qué pesados sois, dejad de molestar',
+];
+R26C.forEach(msg => cases.push(leadOnly('R26-WILD', `R26C-${N()}`, msg, { expected: 'cancel_no_followup' })));
+
+// R26D — Confuso (4)
+const R26D = [
+  'mmm a ver',
+  'pues mira',
+  'ahora vengo',
+  'luego te respondo',
+];
+R26D.forEach(msg => cases.push(leadOnly('R26-WILD', `R26D-${N()}`, msg, { expected: 'no_action' })));
+
+// R26E — Técnico (4)
+const R26E = [
+  'no me carga el enlace del meet',
+  'el micrófono no funciona, ayúdame',
+  'no me deja entrar a Teams',
+  'el ordenador se ha quedado pillado, dame 5min',
+];
+R26E.forEach(msg => cases.push(leadOnly('R26-WILD', `R26E-${N()}`, msg, { expected: 'no_action' })));
+
+// R26F — Cambio modalidad (3)
+const R26F = [
+  'hablamos por audio en vez de zoom?',
+  'mejor por móvil que por ordenador?',
+  'te paso mi WhatsApp y hablamos por ahí?',
+];
+R26F.forEach(msg => cases.push(leadOnly('R26-WILD', `R26F-${N()}`, msg, { expected: 'no_action' })));
+
+// R26G — Condicionales (5)
+const R26G = [
+  ['si no me llamas, no asisto', 'no_action'],
+  ['si dura más de 30 min, cancelo', 'no_action'],
+  ['si llueve cancelo, depende del clima', 'no_action'],
+  ['si no me garantizas resultados, no voy', 'no_action'],
+  ['si veo el video y no me convence, cancelo', 'no_action'],
+];
+R26G.forEach(([msg, expected]) => cases.push(leadOnly('R26-WILD', `R26G-${N()}`, msg, { expected })));
+
+// R26H — Random short (5)
+const R26H = [
+  ['o', 'no_action'],
+  ['vale ok', 'no_action'],
+  ['oye no', 'no_action'],
+  ['j', 'no_action'],
+  ['ñ', 'no_action'],
+];
+R26H.forEach(([msg, expected]) => cases.push(leadOnly('R26-WILD', `R26H-${N()}`, msg, { expected })));
+
+// R26I — Equivocado (3)
+const R26I = [
+  'cariño llegas a la una?',
+  'mamá voy de compras al super',
+  'pásame las llaves luego',
+];
+R26I.forEach(msg => cases.push(leadOnly('R26-WILD', `R26I-${N()}`, msg, { expected: 'no_action' })));
+
+// R26J — Largos (3)
+const R26J = [
+  ['Hola Marcos, te escribo desde Madrid donde estoy de viaje familiar. Mi hermana me pidió ayuda con la mudanza esta semana y entre eso y el trabajo no he tenido un minuto. Mañana exactamente estaré entre cajas y no puedo conectar tranquila a la llamada. Te pido por favor que la pasemos a la semana que viene cuando esté de vuelta en casa.', 'cancel_with_followup'],
+  ['Buenas Marcos, quería decirte que estoy 100% comprometido con la llamada de mañana. He estado mirando el material que me pasaste, me ha gustado mucho el enfoque holístico que tenéis. Estoy preparando preguntas concretas sobre la fase 2 del programa y sobre la integración con mi rutina actual de gym. Hasta mañana entonces!', 'no_action'],
+  ['Marcos sinceramente no veo que esto vaya conmigo. He estado consultando con mi nutricionista actual y el dice que ya tengo un plan adecuado. Te agradezco mucho toda la información que has compartido pero no voy a continuar el proceso. Cancela la llamada y todos los seguimientos por favor. Mucho éxito con tu proyecto.', 'cancel_no_followup'],
+];
+R26J.forEach(([msg, expected]) => cases.push(leadOnly('R26-WILD', `R26J-${N()}`, msg, { expected })));
 
 module.exports = cases;
