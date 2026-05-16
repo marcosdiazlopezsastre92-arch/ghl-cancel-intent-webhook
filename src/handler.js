@@ -154,6 +154,16 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   }
 
   // 2) Custom fields.
+  //
+  // GHL BUG WORKAROUND: GHL sometimes keeps firing the automatic reminders
+  // ("recuerda tu llamada de mañana") even when the appointment is marked
+  // as no-show. To guarantee the lead doesn't receive reminders for a
+  // cancelled call, REMOVE_FROM_AUTO is set on BOTH full cancel variants
+  // (with_followup and no_followup). The seguimiento workflow keeps working
+  // because it triggers on FOLLOWUP_DELAY (a different custom field).
+  //
+  // cancel_partial does NOT get REMOVE_FROM_AUTO because the lead still has
+  // other active calls and those DO need their reminders to fire.
   const fieldsToSet = [];
   if (decision.intent === 'cancel_with_followup') {
     const requestedDelay = decision.followup_delay_days;
@@ -180,6 +190,13 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
         appliedDelayDays: snapped,
       });
     }
+    // Safety net: also set REMOVE_FROM_AUTO so GHL stops sending reminders
+    // for the noshow'd call (GHL bug — sometimes ignores noshow status).
+    fieldsToSet.push({
+      fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
+      value: CUSTOM_FIELDS.REMOVE_FROM_AUTO.options.yes,
+      label: 'REMOVE_FROM_AUTO',
+    });
   } else if (decision.intent === 'cancel_no_followup') {
     fieldsToSet.push({
       fieldId: CUSTOM_FIELDS.REMOVE_FROM_AUTO.id,
@@ -187,8 +204,9 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       label: 'REMOVE_FROM_AUTO',
     });
   }
-  // Note: cancel_partial does not set custom fields (no auto-followup), but
-  // we still add the audit tag below so Marcos can see every script action.
+  // Note: cancel_partial does not set custom fields (no auto-followup, and
+  // REMOVE_FROM_AUTO would block reminders for the lead's other active
+  // calls). We still add the audit tag below so Marcos can see every action.
 
   if (fieldsToSet.length > 0) {
     if (dryRun) {
