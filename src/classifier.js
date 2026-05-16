@@ -156,25 +156,37 @@ EXCEPCIÓN — RETRASOS NO SON CANCELACIONES:
 Distingue cuidadosamente entre "llegar tarde" (no es cancelación) y "no asistir"
 (sí es cancelación). Esta excepción tiene PRIORIDAD sobre la REGLA CRÍTICA #1.
 
-NO ES CANCELACIÓN (no_action) — el coach humano gestiona el retraso:
-- "no podré llegar a tiempo" (sin más contexto)
-- "no llegaré puntual" / "no podré llegar puntual"
-- "llego tarde" / "llegaré tarde" / "voy a llegar tarde"
-- "me retraso X minutos" / "voy con X min de retraso" / "me retrasaré"
-- "me sale algo, llego un poco tarde"
-- "no llego al inicio, entro a la mitad"
-- "puedo entrar X min tarde?"
+ES RETRASO (no_action) — el coach humano gestiona el retraso. Aplica SOLO si la frase
+contiene EXPLÍCITAMENTE alguno de estos cualificadores de retraso:
+- la palabra "tarde", "puntual", o "a tiempo"
+- un número de minutos ("10 min tarde", "15 minutos", "media hora")
+- "al inicio" / "a mitad" / "al final" (refiriéndose a partes de la llamada)
 
-SÍ ES CANCELACIÓN (cancel_with_followup) — el lead no asistirá en absoluto:
+Ejemplos de RETRASO (no_action):
+- "no podré llegar a tiempo" (contiene "a tiempo")
+- "no llegaré puntual" / "no podré llegar puntual" (contiene "puntual")
+- "llego tarde" / "llegaré tarde" / "voy a llegar tarde" (contiene "tarde")
+- "me retraso 10 min" / "voy con 15 min de retraso" (contiene número de minutos)
+- "me sale algo, llego un poco tarde" (contiene "tarde")
+- "no llego al inicio, entro a la mitad" (contiene "al inicio")
+- "puedo entrar 5 min tarde?" (contiene "tarde" + minutos)
+
+ES CANCELACIÓN (cancel_with_followup) — el lead no asistirá en absoluto. Aplica cuando
+el mensaje NO contiene ninguno de los cualificadores de retraso de arriba:
 - "no podré ir" / "no podré asistir" / "no voy a poder"
 - "imposible asistir" / "imposible ir"
-- "no llego" / "no llegaré" (SIN "a tiempo" / "tarde" / "puntual")
-- "no voy a llegar a la llamada" (sin cualificador de retraso)
 - "cancela" / "anula" / "tengo que cancelar"
+- "no llego" (sola, sin "tarde" / "puntual" / "a tiempo")
+- "NO LLEGO HOY" (mayúsculas, énfasis, sin cualificador) → CANCELACIÓN
+- "no llego ehh" / "no llego hoy" → CANCELACIÓN
+- "no voy a llegar" / "no llegaré" → CANCELACIÓN
+- "estoy de resaca, no llego" → CANCELACIÓN (la resaca explica el motivo, "no llego" significa "no voy")
+- "no llego a la llamada" / "no llego a la cita" → CANCELACIÓN
 
-REGLA: si el lead solo menciona retraso / "tarde" / "puntual" SIN expresar
-imposibilidad clara de asistir, trata como no_action. El coach humano gestiona
-los retrasos sin necesidad de tocar la cita en el sistema.
+REGLA CLAVE: "no llego" por sí sola SIEMPRE es cancelación, A MENOS QUE vaya seguida o
+acompañada por uno de los cualificadores explícitos de retraso ("tarde", "puntual",
+"a tiempo", número de minutos, "al inicio"/"a mitad"). No infieras retraso si no está
+explícitamente escrito.
 
 Si el mensaje mezcla retraso + cancelación clara ("llego tarde y mejor cancela")
 → prevalece la cancelación → cancel_with_followup.
@@ -202,22 +214,33 @@ SÍ ES CANCELACIÓN (cancel_with_followup) — decisión tomada, sin "si":
 - "no asistiré" (decisión tomada)
 
 EXCEPCIÓN — PROBLEMAS TÉCNICOS NO SON CANCELACIONES:
-Si el lead reporta problemas técnicos para conectarse a la llamada (no le funciona
-Zoom/Meet, no le carga el link, problemas con audio/cámara, no entra a la sala),
-trata como no_action. El coach humano gestiona el soporte técnico.
+Si el lead reporta problemas técnicos para conectarse a la llamada, trata como no_action.
+El coach humano gestiona el soporte técnico.
 
-NO ES CANCELACIÓN (no_action) — el lead QUIERE asistir, solo tiene problemas técnicos:
-- "no me funciona Zoom"
-- "no puedo entrar, dame otro link?"
-- "no me carga la cámara"
-- "no me entra al meet, ayuda"
-- "llevo 10 min intentando entrar, no me deja"
-- "se me ha colgado el ordenador"
-- "no me sale el link de la call"
-- "no me deja entrar, sigues conectado?"
-- "Zoom me pide actualizar, dame un min"
+ESTA REGLA SOLO APLICA cuando el mensaje del lead menciona EXPLÍCITAMENTE al menos uno
+de estos elementos tecnológicos:
+1. Software de videollamada: Zoom, Meet, Google Meet, Discord, Teams, Skype, FaceTime
+2. Hardware: cámara, micrófono, audio, ordenador, móvil, portátil, tablet
+3. Acceso a la llamada: "el link", "el enlace", "la sala", "el room", "la URL"
+4. Acción de conexión: "entrar" (a la sala/llamada/meet), "conectar", "cargar"
 
-Estos NO son cancelación — son peticiones de ayuda técnica. El lead intenta asistir.
+Ejemplos válidos de PROBLEMA TÉCNICO (no_action):
+- "no me funciona Zoom" (menciona Zoom)
+- "no puedo entrar, dame otro link?" (menciona "entrar" + "link")
+- "no me carga la cámara" (menciona cámara)
+- "no me entra al meet, ayuda" (menciona meet)
+- "llevo 10 min intentando entrar, no me deja" (menciona "entrar")
+- "se me ha colgado el ordenador" (menciona ordenador)
+- "no me sale el link de la call" (menciona link)
+- "Zoom me pide actualizar, dame un min" (menciona Zoom)
+
+CRÍTICO: si "no me sale" / "no me funciona" / "no me entra" NO va acompañado de un término
+tecnológico específico de la lista de arriba, NO es problema técnico — es otra cosa.
+Ejemplos donde NO aplica esta regla:
+- "no me sale hablar hoy" → NO es técnico (es emocional). CANCELACIÓN.
+- "no me sale" sola → ambigüedad, NO técnico, evaluar contexto general.
+- "no me funciona seguir con esto" → NO es técnico (es rechazo del programa).
+- "no me viene bien" → NO es técnico (es ajuste de agenda).
 
 DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
@@ -248,8 +271,8 @@ tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
   silencio post-link, lead ya reagendó (con marcador post-enlace), ajuste menor de hora
-  del mismo día, aviso de retraso sin cancelación clara, cancelación condicional ("si X entonces
-  cancelo"), o problema técnico de conexión.
+  del mismo día, aviso de retraso CON cualificador explícito, cancelación condicional
+  ("si X entonces cancelo"), o problema técnico de conexión CON término tecnológico explícito.
 - "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
   POST-ENLACE), o pide reagendar a otro día (incluso si dice que ya lo hizo, mientras no haya
   cita post-enlace en la lista) y se le debe poner en seguimiento automático. ES EL DEFAULT
