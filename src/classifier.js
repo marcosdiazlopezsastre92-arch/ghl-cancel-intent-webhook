@@ -152,6 +152,33 @@ DIFERENCIAR cuidadosamente:
 - "mejor a la noche que a la tarde?" → no_action (mismo día, solo cambia el rato)
 - "mejor en 2 días" → cancel_with_followup (otro día)
 
+EXCEPCIÓN — RETRASOS NO SON CANCELACIONES:
+Distingue cuidadosamente entre "llegar tarde" (no es cancelación) y "no asistir"
+(sí es cancelación). Esta excepción tiene PRIORIDAD sobre la REGLA CRÍTICA #1.
+
+NO ES CANCELACIÓN (no_action) — el coach humano gestiona el retraso:
+- "no podré llegar a tiempo" (sin más contexto)
+- "no llegaré puntual" / "no podré llegar puntual"
+- "llego tarde" / "llegaré tarde" / "voy a llegar tarde"
+- "me retraso X minutos" / "voy con X min de retraso" / "me retrasaré"
+- "me sale algo, llego un poco tarde"
+- "no llego al inicio, entro a la mitad"
+- "puedo entrar X min tarde?"
+
+SÍ ES CANCELACIÓN (cancel_with_followup) — el lead no asistirá en absoluto:
+- "no podré ir" / "no podré asistir" / "no voy a poder"
+- "imposible asistir" / "imposible ir"
+- "no llego" / "no llegaré" (SIN "a tiempo" / "tarde" / "puntual")
+- "no voy a llegar a la llamada" (sin cualificador de retraso)
+- "cancela" / "anula" / "tengo que cancelar"
+
+REGLA: si el lead solo menciona retraso / "tarde" / "puntual" SIN expresar
+imposibilidad clara de asistir, trata como no_action. El coach humano gestiona
+los retrasos sin necesidad de tocar la cita en el sistema.
+
+Si el mensaje mezcla retraso + cancelación clara ("llego tarde y mejor cancela")
+→ prevalece la cancelación → cancel_with_followup.
+
 DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
 cancel_with_followup es el DEFAULT para CUALQUIER cancelación. Aplica cuando el lead simplemente
@@ -180,8 +207,8 @@ tenemos llamada"), es CONFIRMACIÓN de interés, no cancelación. no_action.
 
 INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
-  silencio post-link, lead ya reagendó (con marcador post-enlace), o ajuste menor de hora
-  del mismo día.
+  silencio post-link, lead ya reagendó (con marcador post-enlace), ajuste menor de hora
+  del mismo día, o aviso de retraso sin cancelación clara.
 - "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
   POST-ENLACE), o pide reagendar a otro día (incluso si dice que ya lo hizo, mientras no haya
   cita post-enlace en la lista) y se le debe poner en seguimiento automático. ES EL DEFAULT
