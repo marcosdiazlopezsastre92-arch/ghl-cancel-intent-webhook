@@ -17,6 +17,16 @@ const {
 
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 
+// Canonical intent values Claude is allowed to return.
+// Note: 'audio_needs_review' is set by us internally when the audio bypass
+// kicks in, never by Claude.
+const VALID_INTENTS = new Set([
+  'no_action',
+  'cancel_with_followup',
+  'cancel_no_followup',
+  'cancel_partial',
+]);
+
 function lastInboundMessage(messages) {
   const inbound = (messages || []).filter((m) => (m.direction || '').toLowerCase() === 'inbound');
   return inbound.length ? inbound[inbound.length - 1] : null;
@@ -260,6 +270,30 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   if (!parsed || !parsed.intent) {
     logger.warn('claude unparseable output', { text: (claudeRes.text || '').slice(0, 500) });
     return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text, transcriptionStats };
+  }
+
+  // Guard against non-canonical intent values. Treat as no_action so we never
+  // execute partial actions (noshow without setting custom fields/tags).
+  if (!VALID_INTENTS.has(parsed.intent)) {
+    logger.warn('claude returned non-canonical intent → no_action', {
+      intent: parsed.intent,
+      parsed,
+    });
+    return {
+      ok: true,
+      bypass: 'unknown-intent',
+      decision: {
+        intent: 'no_action',
+        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0,
+        appointment_ids_to_noshow: [],
+        followup_delay_days: null,
+        reasoning: `Claude returned non-canonical intent "${parsed.intent}". Original: ${parsed.reasoning || ''}`,
+      },
+      claudeRaw: parsed,
+      transcriptionStats,
+      rescheduleLinkSent,
+      leadAfterLink,
+    };
   }
 
   const { accepted, rejected } = validateAppointmentIds(parsed.appointment_ids_to_noshow, appointments);
