@@ -72,6 +72,7 @@ app.get('/health', (_req, res) => {
     serverTokenConfigured: Boolean(process.env.GHL_API_TOKEN),
     anthropicKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
     openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY),
+    testSuiteSize: Array.isArray(testCases) ? testCases.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -121,14 +122,33 @@ app.post('/test/classify', requireSecretOnly, async (req, res) => {
 });
 
 // Run the entire hardcoded test suite (real Claude calls).
+// Query params:
+//   ?verbose=true   include the full `cases` array in the response (large)
+//   ?category=G1    run only cases whose category starts with this prefix
+//   ?limit=50       run only the first N cases (useful for quick smoke tests)
 app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
   }
+
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+
+  let suite = testCases;
+  if (categoryFilter) {
+    suite = suite.filter((tc) => String(tc.category || '').startsWith(categoryFilter));
+  }
+  if (Number.isFinite(limit) && limit > 0) {
+    suite = suite.slice(0, limit);
+  }
+
+  const startedAt = Date.now();
   const results = [];
   let passed = 0, failed = 0;
 
-  for (const tc of testCases) {
+  for (const tc of suite) {
+    const caseStarted = Date.now();
     let cls;
     try {
       cls = await classify({
@@ -137,7 +157,13 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
         openaiApiKey: null, ghlAuthorization: null,
       });
     } catch (err) {
-      results.push({ name: tc.name, error: err.message, pass: false });
+      results.push({
+        name: tc.name,
+        category: tc.category || 'UNCATEGORIZED',
+        error: err.message,
+        pass: false,
+        elapsedMs: Date.now() - caseStarted,
+      });
       failed += 1;
       continue;
     }
@@ -155,7 +181,8 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
     if (pass) passed += 1; else failed += 1;
     results.push({
       name: tc.name,
-      lastLeadMessage: tc.messages.filter(m => m.direction === 'inbound').slice(-1)[0]?.body || '(audio/empty)',
+      category: tc.category || 'UNCATEGORIZED',
+      lastLeadMessage: tc.messages.filter((m) => m.direction === 'inbound').slice(-1)[0]?.body || '(audio/empty)',
       expected, actual,
       expectedDelay: tc.expectedDelay, actualDelay: cls.decision?.followup_delay_days,
       expectedIdsCount: tc.expectedIdsCount, actualIdsCount: cls.decision?.appointment_ids_to_noshow?.length,
@@ -164,15 +191,43 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
       rescheduleLinkSent: cls.rescheduleLinkSent || false,
       reasoning: cls.decision?.reasoning,
       pass,
+      elapsedMs: Date.now() - caseStarted,
     });
   }
 
-  res.json({
-    total: testCases.length, passed, failed,
-    passRate: testCases.length > 0 ? Math.round((passed / testCases.length) * 100) : 0,
+  // Aggregate per-category stats.
+  const catMap = {};
+  for (const r of results) {
+    const cat = r.category;
+    if (!catMap[cat]) catMap[cat] = { category: cat, total: 0, passed: 0, failed: 0 };
+    catMap[cat].total += 1;
+    if (r.pass) catMap[cat].passed += 1; else catMap[cat].failed += 1;
+  }
+  const byCategory = Object.values(catMap)
+    .map((c) => ({ ...c, passRate: c.total > 0 ? Math.round((c.passed / c.total) * 100) : 0 }))
+    .sort((a, b) => {
+      // Sort by failure rate desc, then alphabetically.
+      if (b.failed !== a.failed) return b.failed - a.failed;
+      return a.category.localeCompare(b.category);
+    });
+
+  const failures = results.filter((r) => !r.pass);
+
+  const response = {
+    total: suite.length,
+    passed,
+    failed,
+    passRate: suite.length > 0 ? Math.round((passed / suite.length) * 100) : 0,
+    elapsedMs: Date.now() - startedAt,
     timestamp: new Date().toISOString(),
-    cases: results,
-  });
+    filter: categoryFilter || null,
+    limit: Number.isFinite(limit) ? limit : null,
+    byCategory,
+    failures,
+  };
+  if (verbose) response.cases = results;
+
+  res.json(response);
 });
 
 app.use((req, res) => {
