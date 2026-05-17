@@ -3,7 +3,7 @@
 // Multi-message stress test suite focused on the PRINCIPIO DE LECTURA fix
 // and the soft vs firm cancellation language distinction.
 //
-// ~400 cases across 10 categories:
+// ~425 cases across 12 categories:
 //   M1 (80) — Firm cancellations split across messages (must cancel)
 //   M2 (80) — Objections/conditionals with soft off-ramp (must NOT cancel)
 //   M3 (40) — Retrasos split across messages (must NOT cancel)
@@ -14,6 +14,8 @@
 //   M8 (30) — Cancels en un solo mensaje (regresión single-msg)
 //   M9 (20) — Rechazo total programa (cancel_no_followup)
 //   M10 (20) — Delay distribution (validar bias 95/4/1)
+//   M11 (15) — Cancel partial: 2 citas, cancela solo una
+//   M12 (10) — Firm competitor rejection ("tengo entrenador, no lo necesito")
 
 const APT_ONE = [{
   id: 'TEST_APT_1',
@@ -399,7 +401,7 @@ const M10_DELAY_1 = [
   { msgs: ['lío de reuniones, cancela'], expected: 1 },
   { msgs: ['no puedo esta semana, anula'], expected: 1 },
   { msgs: ['no me viene bien, cancélala'], expected: 1 },
-  { msgs: ['mañana mejor que hoy', 'cancela hoy'], expected: 1 },
+  { msgs: ['no llego, no puedo', 'cancela porfa'], expected: 1 },
   { msgs: ['olvidé que tengo otra cosa, cancela'], expected: 1 },
 ];
 
@@ -422,6 +424,67 @@ for (const v of [...M10_DELAY_1, ...M10_DELAY_3, ...M10_DELAY_7]) {
   for (const m of v.msgs) msgArr.push(['inbound', m]);
   cases.push(tc('M10', `M10-DELAY-${v.expected}D`, msgArr, 'cancel_with_followup', {
     expectedDelay: v.expected,
+    expectedIdsCount: 1,
+  }));
+}
+
+// ============================================================
+// M11: Cancel partial — lead tiene 2 citas, solo cancela 1 (15 cases)
+// Expected: cancel_partial, expectedIdsCount=1
+// ============================================================
+
+const M11_PARTIAL = [
+  // Referencia explícita a una fecha
+  ['no puedo la del lunes', 'la del miércoles está bien'],
+  ['cancélame la del 18', 'la del 20 la mantengo'],
+  ['anula la primera', 'la segunda déjala'],
+  ['déjame cancelar solo la de mañana', 'la otra sí voy'],
+  ['la del lunes no la puedo hacer', 'la del miércoles sí'],
+  // Referencia ordinal
+  ['la primera quítala', 'la segunda sí'],
+  ['mantén solo una', 'la del miércoles está bien'],
+  ['anula la primera de las dos por favor'],
+  // Referencia descriptiva
+  ['cancela la temprana', 'la otra la dejamos'],
+  ['solo necesito una de las dos', 'cancela la primera'],
+  ['borra la del lunes', 'la del miércoles sigue'],
+  ['de las dos llamadas solo voy a hacer la segunda'],
+  ['quita la del 18 porfa', 'la otra está bien'],
+  ['no llego a la del lunes', 'la del miércoles confirmada'],
+  ['solo cancela la primera de las 2 que tengo'],
+];
+
+for (const msg of M11_PARTIAL) {
+  const msgArr = [['outbound', 'Tienes 2 citas: lunes 18 y miércoles 20']];
+  for (const m of msg) msgArr.push(['inbound', m]);
+  cases.push(tc('M11', 'M11-CANCEL-PARTIAL', msgArr, 'cancel_partial', {
+    appointments: APT_TWO,
+    expectedIdsCount: 1,
+  }));
+}
+
+// ============================================================
+// M12: Firm competitor rejection (10 cases)
+// Expected: cancel_no_followup
+// ============================================================
+
+const M12_FIRM_COMPETITOR = [
+  ['ya tengo entrenador', 'no necesito otro, gracias'],
+  ['estoy entrenando con alguien', 'no me hace falta más'],
+  ['ya tengo coach', 'no necesito uno nuevo'],
+  ['trabajo con otro entrenador hace tiempo', 'no me interesa cambiar'],
+  ['ya tengo mi entrenador y nutricionista', 'no necesito nada más'],
+  ['tengo coach desde hace 2 años', 'no me hace falta cambiar, gracias'],
+  ['ya estoy bien con mi entrenador', 'no necesito otro'],
+  ['tengo entrenador, no busco otro, gracias'],
+  ['ya tengo plan con otro coach', 'no necesito vuestro servicio'],
+  ['estoy contentísimo con mi entrenador actual', 'no me interesa, gracias'],
+];
+
+for (const msg of M12_FIRM_COMPETITOR) {
+  const msgArr = [['outbound', 'Hola, recordatorio de la llamada de mañana 16h']];
+  for (const m of msg) msgArr.push(['inbound', m]);
+  cases.push(tc('M12', 'M12-FIRM-COMPETITOR', msgArr, 'cancel_no_followup', {
     expectedIdsCount: 1,
   }));
 }
