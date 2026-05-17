@@ -361,19 +361,46 @@ REGLAS GENERALES:
 
 REGLA ESTRICTA SOBRE followup_delay_days:
 followup_delay_days SOLO puede tomar uno de estos valores: 1, 3, 7, o null.
-NUNCA devuelvas otro número. Aunque el lead diga "recuérdame en 5 días", "vuélveme a llamar
-en 2 semanas", "en 10 días", "el viernes" o cualquier otro plazo concreto, debes redondear
-SIEMPRE al valor válido más cercano siguiendo esta tabla:
-  - Plazo pedido = 1 o 2 días  → 1
-  - Plazo pedido = 3, 4 o 5 días → 3
-  - Plazo pedido = 6 días o más → 7
-  - Sin plazo / null → 1 (default)
 
-Para decidir el delay del seguimiento (cancel_with_followup) cuando el lead NO especifica un
-plazo concreto, usa el contexto:
-  * 1 día (default): cancelación sin contexto especial
-  * 3 días: malestar puntual ("dolor de cabeza", "estoy malo")
-  * 7 días: enfermedad seria, viaje, agenda muy cargada ("esta semana fatal", "de viaje")
+POLÍTICA — INCLINARSE SIEMPRE AL DELAY MÁS CORTO POSIBLE:
+Los leads se enfrían rápido cuando pasa el tiempo. Es preferible intentar contactar
+ANTES (y que el lead diga "todavía no puedo") que esperar demasiado y perderlo.
+
+Distribución esperada en producción: ~95% son 1, ~4% son 3, ~1% es 7.
+
+USAR 1 DÍA (DEFAULT FUERTE — la mayoría aplastante de cancelaciones):
+- Cancelación sin motivo específico
+- Cancelación por motivo puntual: resaca, dolor de cabeza, lío con trabajo,
+  reunión imprevista, "me ha surgido algo", "no puedo hoy", "estoy malo",
+  "no llego hoy", "se me complicó", "olvidé que tengo otra cosa"
+- Lead menciona viaje/ausencia/enfermedad SIN especificar duración:
+  "sigo de viaje", "estoy fuera", "no puedo esta semana" (sin decir cuánto),
+  "estoy malo" (sin decir cuántos días)
+- Cualquier ambigüedad sobre duración → 1
+
+USAR 3 DÍAS — SOLO si el lead indica EXPLÍCITAMENTE impedimento de VARIOS días
+(pero no toda la semana):
+- "tengo gripe llevo 2 días, dame un par más"
+- "este finde estoy fuera, contáctame el lunes" (si hoy es jueves)
+- "estoy en un congreso hasta el viernes" (si hoy es martes)
+- "vuelvo en 3-4 días"
+
+USAR 7 DÍAS — SOLO si el lead indica EXPLÍCITAMENTE ausencia LARGA (semana o más):
+- "estaré de vacaciones 10 días"
+- "estaré 2 semanas fuera"
+- "esta semana imposible, hablemos la siguiente"
+- "vuelvo el día X" (y faltan 7+ días)
+
+SI HAY CUALQUIER DUDA SOBRE LA DURACIÓN → 1 día. Siempre.
+
+REGLA DE REDONDEO (si el lead pide un plazo concreto en número de días o fecha):
+Devuelve SIEMPRE uno de {1, 3, 7}. Aunque el lead diga "recuérdame en 5 días",
+"en 2 semanas", "en 10 días", "el viernes", redondea al valor válido más cercano
+inclinándose al MENOR cuando esté en el medio:
+  - "mañana" / "en 1-2 días" → 1
+  - "en 3, 4 o 5 días" → 3
+  - "en 6 días o más" → 7
+  - Sin plazo concreto + sin contexto de impedimento largo → 1 (default)
 
 Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional):
 {
