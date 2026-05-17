@@ -10,6 +10,7 @@ const { LOCATION_ID, DEFAULT_CLAUDE_MODEL, DEFAULT_CONFIDENCE_THRESHOLD } = requ
 const logger = require('./logger');
 const testCases = require('./testCases');
 const testCasesMultimsg = require('./testCases-multimsg');
+const testCasesEdge = require('./testCases-edge');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -75,6 +76,7 @@ app.get('/health', (_req, res) => {
     openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY),
     testSuiteSize: Array.isArray(testCases) ? testCases.length : 0,
     multimsgSuiteSize: Array.isArray(testCasesMultimsg) ? testCasesMultimsg.length : 0,
+    edgeSuiteSize: Array.isArray(testCasesEdge) ? testCasesEdge.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -104,7 +106,6 @@ app.post('/webhook/ghl/cancel-intent', requireAuth, async (req, res) => {
 });
 
 // ===================== TEST ENDPOINTS =====================
-// Run a single ad-hoc case through the classifier (no GHL calls).
 app.post('/test/classify', requireSecretOnly, async (req, res) => {
   try {
     const { messages = [], appointments = [] } = req.body || {};
@@ -123,7 +124,6 @@ app.post('/test/classify', requireSecretOnly, async (req, res) => {
   }
 });
 
-// Shared runner used by both /test/run-suite and /test/run-multimsg.
 async function runSuite({ suite, verbose, categoryFilter, limit }) {
   let filtered = suite;
   if (categoryFilter) {
@@ -217,7 +217,6 @@ async function runSuite({ suite, verbose, categoryFilter, limit }) {
   return response;
 }
 
-// Original test suite (G1-G26 etc — 545 cases regression)
 app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -229,7 +228,6 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// New multi-message stress suite (M1-M10 — 400 cases)
 app.get('/test/run-multimsg', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -238,6 +236,18 @@ app.get('/test/run-multimsg', requireSecretOnly, async (req, res) => {
   const categoryFilter = String(req.query.category || '').trim();
   const limit = parseInt(req.query.limit, 10);
   const response = await runSuite({ suite: testCasesMultimsg, verbose, categoryFilter, limit });
+  res.json(response);
+});
+
+// New edge case suite (E1-E10 — 140 cases)
+app.get('/test/run-edge', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const response = await runSuite({ suite: testCasesEdge, verbose, categoryFilter, limit });
   res.json(response);
 });
 
