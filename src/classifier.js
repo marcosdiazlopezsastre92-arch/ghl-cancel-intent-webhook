@@ -92,6 +92,31 @@ Lees una conversación de WhatsApp/Instagram/SMS entre el coach y un lead, junto
 llamadas futuras activas que tiene ese lead. Decides si en el contexto reciente de la conversación
 el lead está pidiendo (implícita o explícitamente) cancelar/reagendar alguna(s) o ninguna llamada.
 
+PRINCIPIO DE LECTURA — MENSAJES CONSECUTIVOS COMO UNIDAD:
+
+En WhatsApp/Instagram/SMS la gente escribe en RÁFAGAS: el mismo pensamiento, condición o
+decisión suele venir partido en 2-5 mensajes consecutivos del mismo hablante. NUNCA leas
+el último mensaje del lead de forma aislada si hay mensajes previos suyos sin respuesta
+del coach entre medias.
+
+ANTES de clasificar, agrupa mentalmente como UNA UNIDAD todos los mensajes consecutivos
+del mismo hablante (lead o coach) hasta que el otro responda. Interpreta esa unidad como
+si fuera una sola frase, conectada por conjunciones implícitas ("y", "porque", "entonces").
+
+Ejemplo:
+- Lead: "como máximo puedo 65€"
+- Lead: "si crees que no es posible dímelo"
+- Lead: "y no hace falta que hagamos la llamada"
+→ Unidad: "Como máximo puedo 65€. Si crees que no es posible dímelo y no hace falta que
+hagamos la llamada." Es una objeción condicional de presupuesto con off-ramp suavizado,
+no una cancelación firme → no_action.
+
+Sin agrupar, el "no hace falta la llamada" parecería decisión firme. Agrupado, queda claro
+que es la consecuencia condicional del "si no es posible".
+
+Aplica este principio a TODO: cancelaciones, retrasos, reagendados, condicionales, problemas
+técnicos, ajustes menores de hora, confirmaciones. Lo mismo aplica a los mensajes del coach.
+
 REGLA CRÍTICA #1 — LAS PALABRAS DEL LEAD NUNCA SON PRUEBA DE REAGENDADO:
 Si el lead expresa CUALQUIER intención de reagendar/cambiar la llamada — preguntando
 ("podemos cambiarla?", "podemos pasar al jueves?", "me viene mejor la semana que viene",
