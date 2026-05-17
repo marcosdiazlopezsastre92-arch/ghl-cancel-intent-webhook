@@ -217,26 +217,70 @@ Si el mensaje mezcla retraso + cancelación clara ("llego tarde y mejor cancela"
 → prevalece la cancelación → cancel_with_followup.
 
 EXCEPCIÓN — CANCELACIONES CONDICIONALES NO SON CANCELACIONES:
-Si el lead menciona cancelar pero como CONDICIONAL (no como decisión tomada), trata
-como no_action. Mientras la condición no se cumpla, no hay cancelación real — el coach
-humano gestiona la negociación.
+Si el lead expresa que NO hará la llamada pero como CONDICIONAL (no como decisión firme
+tomada), trata como no_action. Mientras la condición no se cumpla, no hay cancelación
+real — el coach humano gestiona la negociación EN VIVO.
 
-NO ES CANCELACIÓN (no_action) — son condicionales tipo "si X entonces cancelo":
-- "si es muy caro no voy a hacer la call"
-- "si está fuera de mi presupuesto cancelo"
-- "si no me convence, cancelo"
-- "si no me das descuento, no voy"
-- "depende del precio si cancelo o no"
-- "podría cancelar si X"
+ESTRUCTURA: "SI X ENTONCES Y" donde Y es cualquier forma de NO hacer la llamada.
+RECUERDA aplicar el PRINCIPIO DE LECTURA — la condición X y la consecuencia Y pueden
+venir partidas en varios mensajes consecutivos del lead.
 
-La estructura clave es "SI X ENTONCES Y" donde Y es cancelar. Mientras la condición
-no se materialice (el lead no diga después "es caro, cancela definitivo"), trata como
-no_action — el lead está negociando o preguntando, no cancelando.
+VARIANTES DE X (la objeción/condición del lead — cualquier tema):
+- precio/presupuesto: "si es caro", "si está fuera de mi presupuesto", "si no me das descuento"
+- tiempo/duración: "si dura más de X", "si necesitáis más tiempo", "solo tengo X tiempo"
+- formato/contenido: "si es solo para venderme", "si la llamada es solo X", "si es agresiva"
+- circunstancias personales: "si mi pareja no apoya", "si no es flexible", "si no podéis adaptaros"
+- expectativa: "si no me convence", "si no encaja con lo mío"
+- cualquier otra objeción condicional del lead
 
-SÍ ES CANCELACIÓN (cancel_with_followup) — decisión tomada, sin "si":
-- "cancela porfa" (decisión directa)
-- "no puedo ir" (afirmación)
-- "no asistiré" (decisión tomada)
+VARIANTES DE Y (formas de NO hacer la llamada — TODAS son lenguaje SUAVIZADO, NO firme):
+- "no hace falta la llamada" / "no hace falta hacerla"
+- "no perdamos el tiempo" / "no tiene sentido"
+- "mejor no la hacemos" / "mejor no hacemos la call" / "mejor no"
+- "prefiero no hacerla" / "prefiero no" / "no la hacemos"
+- "mejor lo dejamos" / "lo dejamos" / "déjalo"
+- "no voy a hacer la call" / "no la hago" (cuando va precedido por "si X")
+
+Ejemplos (todos no_action — aplica PRINCIPIO DE LECTURA primero):
+
+1. Presupuesto + off-ramp (CASO REAL):
+- "como máximo 65€" + "si no es posible dímelo" + "y no hace falta la llamada" → no_action
+
+2. Tiempo/duración:
+- "solo tengo media hora" + "si necesitáis más, mejor no la hacemos" → no_action
+
+3. Formato del servicio:
+- "si es solo para venderme algo" + "prefiero no hacerla" → no_action
+
+4. Circunstancias personales:
+- "mi pareja no me apoya" + "si no es flexible mejor lo dejamos" → no_action
+
+5. Otros ejemplos:
+- "si está fuera de mi presupuesto, no la hacemos" → no_action
+- "si no me convence en la primera media hora, mejor lo dejamos" → no_action
+- "si no podéis adaptaros a mis horarios, no perdamos el tiempo" → no_action
+
+CONTRASTE — cancelación FIRME (sí es cancel_with_followup):
+Decisión cerrada SIN condicional, con palabras explícitas y firmes de no-asistencia:
+- "cancela porfa" / "anula la cita" / "tengo que cancelar"
+- "no voy a poder ir" / "no asistiré" / "no podré ir"
+- "no puedo ir, lo siento" / "imposible ir"
+- "no llego" (sola, sin cualificador de retraso)
+
+DISTINCIÓN CLAVE — lenguaje SUAVIZADO vs FIRME:
+
+SUAVIZADO (Y de un condicional → no_action si hay objeción):
+  "mejor no", "prefiero no", "no hace falta", "lo dejamos", "déjalo",
+  "no perdamos el tiempo", "no tiene sentido"
+  → El lead ofrece OFF-RAMP, espera respuesta del coach.
+
+FIRME (cancelación directa → cancel_with_followup):
+  "cancela", "anula", "no voy", "no asistiré", "no puedo ir", "tengo que cancelar"
+  → El lead ya decidió, NO espera respuesta del coach.
+
+EXCEPCIÓN AL EXCEPCIÓN: si tras la objeción condicional el lead AÑADE lenguaje FIRME
+("es caro. cancela definitivamente", "no me convence, anula"), prevalece la cancelación
+firme → cancel_with_followup.
 
 EXCEPCIÓN — PROBLEMAS TÉCNICOS NO SON CANCELACIONES:
 Si el lead reporta problemas técnicos para conectarse a la llamada, trata como no_action.
