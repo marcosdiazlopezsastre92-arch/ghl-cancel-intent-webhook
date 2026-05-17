@@ -9,6 +9,7 @@ const { classify } = require('./classifier');
 const { LOCATION_ID, DEFAULT_CLAUDE_MODEL, DEFAULT_CONFIDENCE_THRESHOLD } = require('./config');
 const logger = require('./logger');
 const testCases = require('./testCases');
+const testCasesMultimsg = require('./testCases-multimsg');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -73,6 +74,7 @@ app.get('/health', (_req, res) => {
     anthropicKeyConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
     openaiKeyConfigured: Boolean(process.env.OPENAI_API_KEY),
     testSuiteSize: Array.isArray(testCases) ? testCases.length : 0,
+    multimsgSuiteSize: Array.isArray(testCasesMultimsg) ? testCasesMultimsg.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -121,33 +123,21 @@ app.post('/test/classify', requireSecretOnly, async (req, res) => {
   }
 });
 
-// Run the entire hardcoded test suite (real Claude calls).
-// Query params:
-//   ?verbose=true   include the full `cases` array in the response (large)
-//   ?category=G1    run only cases whose category starts with this prefix
-//   ?limit=50       run only the first N cases (useful for quick smoke tests)
-app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
-  }
-
-  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
-  const categoryFilter = String(req.query.category || '').trim();
-  const limit = parseInt(req.query.limit, 10);
-
-  let suite = testCases;
+// Shared runner used by both /test/run-suite and /test/run-multimsg.
+async function runSuite({ suite, verbose, categoryFilter, limit }) {
+  let filtered = suite;
   if (categoryFilter) {
-    suite = suite.filter((tc) => String(tc.category || '').startsWith(categoryFilter));
+    filtered = filtered.filter((tc) => String(tc.category || '').startsWith(categoryFilter));
   }
   if (Number.isFinite(limit) && limit > 0) {
-    suite = suite.slice(0, limit);
+    filtered = filtered.slice(0, limit);
   }
 
   const startedAt = Date.now();
   const results = [];
   let passed = 0, failed = 0;
 
-  for (const tc of suite) {
+  for (const tc of filtered) {
     const caseStarted = Date.now();
     let cls;
     try {
@@ -195,7 +185,6 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
     });
   }
 
-  // Aggregate per-category stats.
   const catMap = {};
   for (const r of results) {
     const cat = r.category;
@@ -206,7 +195,6 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   const byCategory = Object.values(catMap)
     .map((c) => ({ ...c, passRate: c.total > 0 ? Math.round((c.passed / c.total) * 100) : 0 }))
     .sort((a, b) => {
-      // Sort by failure rate desc, then alphabetically.
       if (b.failed !== a.failed) return b.failed - a.failed;
       return a.category.localeCompare(b.category);
     });
@@ -214,10 +202,10 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   const failures = results.filter((r) => !r.pass);
 
   const response = {
-    total: suite.length,
+    total: filtered.length,
     passed,
     failed,
-    passRate: suite.length > 0 ? Math.round((passed / suite.length) * 100) : 0,
+    passRate: filtered.length > 0 ? Math.round((passed / filtered.length) * 100) : 0,
     elapsedMs: Date.now() - startedAt,
     timestamp: new Date().toISOString(),
     filter: categoryFilter || null,
@@ -226,7 +214,30 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
     failures,
   };
   if (verbose) response.cases = results;
+  return response;
+}
 
+// Original test suite (G1-G26 etc — 545 cases regression)
+app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const response = await runSuite({ suite: testCases, verbose, categoryFilter, limit });
+  res.json(response);
+});
+
+// New multi-message stress suite (M1-M10 — 400 cases)
+app.get('/test/run-multimsg', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const response = await runSuite({ suite: testCasesMultimsg, verbose, categoryFilter, limit });
   res.json(response);
 });
 
