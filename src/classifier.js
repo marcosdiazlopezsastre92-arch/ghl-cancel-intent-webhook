@@ -231,6 +231,7 @@ VARIANTES DE X (la objeción/condición del lead — cualquier tema):
 - formato/contenido: "si es solo para venderme", "si la llamada es solo X", "si es agresiva"
 - circunstancias personales: "si mi pareja no apoya", "si no es flexible", "si no podéis adaptaros"
 - expectativa: "si no me convence", "si no encaja con lo mío"
+- competidor (lead ya tiene entrenador): "si no aportáis más que el mío"
 - cualquier otra objeción condicional del lead
 
 VARIANTES DE Y (formas de NO hacer la llamada — TODAS son lenguaje SUAVIZADO, NO firme):
@@ -255,7 +256,11 @@ Ejemplos (todos no_action — aplica PRINCIPIO DE LECTURA primero):
 4. Circunstancias personales:
 - "mi pareja no me apoya" + "si no es flexible mejor lo dejamos" → no_action
 
-5. Otros ejemplos:
+5. Competidor (lead abierto a diferenciar):
+- "tengo ya un entrenador" + "si no aportáis más mejor no" → no_action
+  (el lead está pidiendo que diferenciemos — coach humano lo gestiona)
+
+6. Otros ejemplos:
 - "si está fuera de mi presupuesto, no la hacemos" → no_action
 - "si no me convence en la primera media hora, mejor lo dejamos" → no_action
 - "si no podéis adaptaros a mis horarios, no perdamos el tiempo" → no_action
@@ -281,6 +286,19 @@ FIRME (cancelación directa → cancel_with_followup):
 EXCEPCIÓN AL EXCEPCIÓN: si tras la objeción condicional el lead AÑADE lenguaje FIRME
 ("es caro. cancela definitivamente", "no me convence, anula"), prevalece la cancelación
 firme → cancel_with_followup.
+
+NOTA ESPECIAL — MENCIÓN DE COMPETIDOR (lead dice "tengo entrenador"):
+Tiene 2 interpretaciones MUY DISTINTAS según el resto del mensaje:
+
+(a) SOFT — lead negocia, abierto a diferenciar → no_action
+   Ej: "tengo ya un entrenador" + "si no aportáis más, mejor no"
+   Ej: "trabajo con otro coach" + "si no encaja con vuestro método mejor lo dejamos"
+   El lead deja la puerta abierta condicionada a una respuesta del coach.
+
+(b) FIRME — rechazo cerrado del programa → cancel_no_followup (ver sección abajo)
+   Ej: "ya tengo entrenador, no necesito otro, gracias"
+   Ej: "estoy entrenando con alguien, no me hace falta más"
+   El lead descarta el servicio sin esperar respuesta. No tiene sentido seguimiento.
 
 EXCEPCIÓN — PROBLEMAS TÉCNICOS NO SON CANCELACIONES:
 Si el lead reporta problemas técnicos para conectarse a la llamada, trata como no_action.
@@ -322,6 +340,8 @@ cancel_no_followup SOLO cuando el lead expresa RECHAZO TOTAL DEL PROGRAMA/AGENCI
 señales muy fuertes y explícitas como:
   - "ya no me interesa" / "perdí el interés"
   - "voy a tirar con otro entrenador" / "voy con otro"
+  - "ya tengo entrenador, no necesito otro" / "tengo coach, gracias, no me hace falta"
+  - "estoy entrenando con alguien, no necesito más"
   - "borra mis datos" / "quítame de tu lista" / "no me contactes más"
   - "déjame en paz" / "no me molestes más"
   - "paso completamente del tema" / "paso del tema, gracias"
