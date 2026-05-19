@@ -11,6 +11,7 @@ const logger = require('./logger');
 const testCases = require('./testCases');
 const testCasesMultimsg = require('./testCases-multimsg');
 const testCasesEdge = require('./testCases-edge');
+const testCasesV2 = require('./testCases-v2');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -77,6 +78,7 @@ app.get('/health', (_req, res) => {
     testSuiteSize: Array.isArray(testCases) ? testCases.length : 0,
     multimsgSuiteSize: Array.isArray(testCasesMultimsg) ? testCasesMultimsg.length : 0,
     edgeSuiteSize: Array.isArray(testCasesEdge) ? testCasesEdge.length : 0,
+    v2SuiteSize: Array.isArray(testCasesV2) ? testCasesV2.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -239,7 +241,7 @@ app.get('/test/run-multimsg', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// New edge case suite (E1-E10 — 140 cases)
+// Edge case suite (E1-E10 — 140 cases)
 app.get('/test/run-edge', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -248,6 +250,20 @@ app.get('/test/run-edge', requireSecretOnly, async (req, res) => {
   const categoryFilter = String(req.query.category || '').trim();
   const limit = parseInt(req.query.limit, 10);
   const response = await runSuite({ suite: testCasesEdge, verbose, categoryFilter, limit });
+  res.json(response);
+});
+
+// V2 suite (N1-N13 — 400 cases). Covers NEW exception "LEAD INCIERTO + OFRECE
+// CONFIRMAR" plus regression checks for all previously-fixed patterns.
+// Includes the verbatim production failure case from 2026-05-19 (N1-CASOREAL-PEPE).
+app.get('/test/run-v2', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const response = await runSuite({ suite: testCasesV2, verbose, categoryFilter, limit });
   res.json(response);
 });
 
