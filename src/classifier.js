@@ -4,6 +4,7 @@ const { callClaude } = require('./claudeClient');
 const {
   DEFAULT_CONFIDENCE_THRESHOLD,
   DEFAULT_CLAUDE_MODEL,
+  DEFAULT_CLAUDE_FALLBACK_MODEL,
   DEFAULT_MESSAGES_LOOKBACK,
 } = require('./config');
 const logger = require('./logger');
@@ -455,7 +456,7 @@ function validateAppointmentIds(claudeIds, activeAppointments) {
   return { accepted, rejected };
 }
 
-async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAuthorization, model, threshold }) {
+async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAuthorization, model, fallbackModel, threshold }) {
   let transcriptionStats = null;
   if (openaiApiKey) {
     try {
@@ -510,11 +511,19 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     `CONVERSACIÓN (de más antiguo a más reciente):\n\n${transcript}\n\n` +
     `Devuelve sólo el JSON especificado.`;
 
+  const effectiveFallback = fallbackModel !== undefined ? fallbackModel : DEFAULT_CLAUDE_FALLBACK_MODEL;
   const claudeRes = await callClaude({
-    apiKey, model: model || DEFAULT_CLAUDE_MODEL,
-    system: SYSTEM_PROMPT, userMessage,
+    apiKey,
+    model: model || DEFAULT_CLAUDE_MODEL,
+    fallbackModel: effectiveFallback || undefined,
+    system: SYSTEM_PROMPT,
+    userMessage,
   });
   if (!claudeRes.ok) return { ok: false, error: 'claude-call-failed', detail: claudeRes, transcriptionStats };
+
+  if (claudeRes.modelUsed && claudeRes.modelUsed !== (model || DEFAULT_CLAUDE_MODEL)) {
+    logger.info('classification served by fallback model', { modelUsed: claudeRes.modelUsed });
+  }
 
   const parsed = parseClaudeJson(claudeRes.text);
   if (!parsed || !parsed.intent) {
