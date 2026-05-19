@@ -12,6 +12,7 @@ const testCases = require('./testCases');
 const testCasesMultimsg = require('./testCases-multimsg');
 const testCasesEdge = require('./testCases-edge');
 const testCasesV2 = require('./testCases-v2');
+const testCasesLite = require('./testCases-lite');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -79,6 +80,7 @@ app.get('/health', (_req, res) => {
     multimsgSuiteSize: Array.isArray(testCasesMultimsg) ? testCasesMultimsg.length : 0,
     edgeSuiteSize: Array.isArray(testCasesEdge) ? testCasesEdge.length : 0,
     v2SuiteSize: Array.isArray(testCasesV2) ? testCasesV2.length : 0,
+    liteSuiteSize: Array.isArray(testCasesLite) ? testCasesLite.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -126,7 +128,12 @@ app.post('/test/classify', requireSecretOnly, async (req, res) => {
   }
 });
 
-async function runSuite({ suite, verbose, categoryFilter, limit }) {
+function sleep(ms) {
+  if (!Number.isFinite(ms) || ms <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function runSuite({ suite, verbose, categoryFilter, limit, delayMs = 0 }) {
   let filtered = suite;
   if (categoryFilter) {
     filtered = filtered.filter((tc) => String(tc.category || '').startsWith(categoryFilter));
@@ -139,7 +146,13 @@ async function runSuite({ suite, verbose, categoryFilter, limit }) {
   const results = [];
   let passed = 0, failed = 0;
 
-  for (const tc of filtered) {
+  for (let i = 0; i < filtered.length; i++) {
+    const tc = filtered[i];
+    // Throttle between calls to respect Anthropic rate limits.
+    // Skip delay before the very first call.
+    if (i > 0 && delayMs > 0) {
+      await sleep(delayMs);
+    }
     const caseStarted = Date.now();
     let cls;
     try {
@@ -209,6 +222,7 @@ async function runSuite({ suite, verbose, categoryFilter, limit }) {
     failed,
     passRate: filtered.length > 0 ? Math.round((passed / filtered.length) * 100) : 0,
     elapsedMs: Date.now() - startedAt,
+    delayMs,
     timestamp: new Date().toISOString(),
     filter: categoryFilter || null,
     limit: Number.isFinite(limit) ? limit : null,
@@ -219,6 +233,14 @@ async function runSuite({ suite, verbose, categoryFilter, limit }) {
   return response;
 }
 
+function parseDelayMs(req, defaultMs) {
+  const raw = req.query.delayMs;
+  if (raw === undefined || raw === null || raw === '') return defaultMs;
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 0) return defaultMs;
+  return Math.min(n, 10000); // cap at 10s for safety
+}
+
 app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -226,7 +248,8 @@ app.get('/test/run-suite', requireSecretOnly, async (req, res) => {
   const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
   const categoryFilter = String(req.query.category || '').trim();
   const limit = parseInt(req.query.limit, 10);
-  const response = await runSuite({ suite: testCases, verbose, categoryFilter, limit });
+  const delayMs = parseDelayMs(req, 0);
+  const response = await runSuite({ suite: testCases, verbose, categoryFilter, limit, delayMs });
   res.json(response);
 });
 
@@ -237,7 +260,8 @@ app.get('/test/run-multimsg', requireSecretOnly, async (req, res) => {
   const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
   const categoryFilter = String(req.query.category || '').trim();
   const limit = parseInt(req.query.limit, 10);
-  const response = await runSuite({ suite: testCasesMultimsg, verbose, categoryFilter, limit });
+  const delayMs = parseDelayMs(req, 0);
+  const response = await runSuite({ suite: testCasesMultimsg, verbose, categoryFilter, limit, delayMs });
   res.json(response);
 });
 
@@ -249,13 +273,12 @@ app.get('/test/run-edge', requireSecretOnly, async (req, res) => {
   const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
   const categoryFilter = String(req.query.category || '').trim();
   const limit = parseInt(req.query.limit, 10);
-  const response = await runSuite({ suite: testCasesEdge, verbose, categoryFilter, limit });
+  const delayMs = parseDelayMs(req, 0);
+  const response = await runSuite({ suite: testCasesEdge, verbose, categoryFilter, limit, delayMs });
   res.json(response);
 });
 
-// V2 suite (N1-N13 — 400 cases). Covers NEW exception "LEAD INCIERTO + OFRECE
-// CONFIRMAR" plus regression checks for all previously-fixed patterns.
-// Includes the verbatim production failure case from 2026-05-19 (N1-CASOREAL-PEPE).
+// V2 suite (N1-N13 — 400 cases). Covers NEW exception + regressions.
 app.get('/test/run-v2', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -263,7 +286,23 @@ app.get('/test/run-v2', requireSecretOnly, async (req, res) => {
   const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
   const categoryFilter = String(req.query.category || '').trim();
   const limit = parseInt(req.query.limit, 10);
-  const response = await runSuite({ suite: testCasesV2, verbose, categoryFilter, limit });
+  const delayMs = parseDelayMs(req, 0);
+  const response = await runSuite({ suite: testCasesV2, verbose, categoryFilter, limit, delayMs });
+  res.json(response);
+});
+
+// LITE suite (L1-L13 — 150 balanced cases). 1200ms delay between calls
+// by default to respect Anthropic tier 1 rate limit (~50 RPM).
+// Estimated runtime: ~5-6 minutes.
+app.get('/test/run-lite', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const delayMs = parseDelayMs(req, 1200);
+  const response = await runSuite({ suite: testCasesLite, verbose, categoryFilter, limit, delayMs });
   res.json(response);
 });
 
