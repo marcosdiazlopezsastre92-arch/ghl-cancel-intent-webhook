@@ -35,6 +35,15 @@ const CANCELLED_STATUSES = new Set(['cancelled', 'canceled', 'noshow', 'no_show'
 
 const DEFAULT_CONFIDENCE_THRESHOLD = parseFloat(process.env.CONFIDENCE_THRESHOLD || '0.80');
 const DEFAULT_CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+
+// Fallback model used when the primary model (Haiku) exhausts retries on a
+// transient error (typically 529 overloaded_error). Sonnet lives in a
+// separate capacity pool, so it usually has availability when Haiku is hot.
+// Set to empty string to disable the fallback entirely.
+const DEFAULT_CLAUDE_FALLBACK_MODEL = process.env.CLAUDE_FALLBACK_MODEL !== undefined
+  ? process.env.CLAUDE_FALLBACK_MODEL
+  : 'claude-sonnet-4-6';
+
 const DEFAULT_MESSAGES_LOOKBACK = parseInt(process.env.MESSAGES_LOOKBACK || '15', 10);
 
 module.exports = {
@@ -42,5 +51,8 @@ module.exports = {
   CUSTOM_FIELDS,
   CANCELLATION_NOTICE_TAG, SCRIPT_APPLIED_TAG,
   CANCELLED_STATUSES,
-  DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_CLAUDE_MODEL, DEFAULT_MESSAGES_LOOKBACK,
+  DEFAULT_CONFIDENCE_THRESHOLD,
+  DEFAULT_CLAUDE_MODEL,
+  DEFAULT_CLAUDE_FALLBACK_MODEL,
+  DEFAULT_MESSAGES_LOOKBACK,
 };
