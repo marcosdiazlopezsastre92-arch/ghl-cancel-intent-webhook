@@ -232,8 +232,8 @@ VARIANTES DE X (la objeción/condición del lead — cualquier tema):
 - formato/contenido: "si es solo para venderme", "si la llamada es solo X", "si es agresiva"
 - circunstancias personales: "si mi pareja no apoya", "si no es flexible", "si no podéis adaptaros"
 - expectativa: "si no me convence", "si no encaja con lo mío"
-- competidor (lead ya tiene entrenador): "si no aportáis más que el mío"
 - cualquier otra objeción condicional del lead
+- Para "tengo entrenador" → ver CASO ESPECIAL — LEAD MENCIONA TENER ENTRENADOR
 
 VARIANTES DE Y (formas de NO hacer la llamada — TODAS son lenguaje SUAVIZADO, NO firme):
 - "no hace falta la llamada" / "no hace falta hacerla"
@@ -257,9 +257,7 @@ Ejemplos (todos no_action — aplica PRINCIPIO DE LECTURA primero):
 4. Circunstancias personales:
 - "mi pareja no me apoya" + "si no es flexible mejor lo dejamos" → no_action
 
-5. Competidor (lead abierto a diferenciar):
-- "tengo ya un entrenador" + "si no aportáis más mejor no" → no_action
-  (el lead está pidiendo que diferenciemos — coach humano lo gestiona)
+5. Competidor → ver CASO ESPECIAL — LEAD MENCIONA TENER ENTRENADOR
 
 6. Otros ejemplos:
 - "si está fuera de mi presupuesto, no la hacemos" → no_action
@@ -288,7 +286,7 @@ EXCEPCIÓN AL EXCEPCIÓN: si tras la objeción condicional el lead AÑADE lengua
 ("es caro. cancela definitivamente", "no me convence, anula"), prevalece la cancelación
 firme → cancel_with_followup.
 
-NOTA ESPECIAL — MENCIÓN DE COMPETIDOR (lead dice "tengo entrenador"):
+CASO ESPECIAL — LEAD MENCIONA TENER ENTRENADOR:
 Tiene 2 interpretaciones MUY DISTINTAS según el resto del mensaje:
 
 (a) SOFT — lead negocia, abierto a diferenciar → no_action
@@ -296,10 +294,15 @@ Tiene 2 interpretaciones MUY DISTINTAS según el resto del mensaje:
    Ej: "trabajo con otro coach" + "si no encaja con vuestro método mejor lo dejamos"
    El lead deja la puerta abierta condicionada a una respuesta del coach.
 
-(b) FIRME — rechazo cerrado del programa → cancel_no_followup (ver sección abajo)
+(b) FIRME — rechazo cerrado del programa → cancel_no_followup
    Ej: "ya tengo entrenador, no necesito otro, gracias"
    Ej: "estoy entrenando con alguien, no me hace falta más"
+   Ej: "tengo coach, gracias, no me hace falta"
+   Ej: "voy a tirar con mi entrenador actual"
    El lead descarta el servicio sin esperar respuesta. No tiene sentido seguimiento.
+
+CLAVE: la diferencia es si hay "si..." condicional (soft) o decisión cerrada sin
+condicional (firme). En caso de duda → soft → no_action.
 
 EXCEPCIÓN — PROBLEMAS TÉCNICOS NO SON CANCELACIONES:
 Si el lead reporta problemas técnicos para conectarse a la llamada, trata como no_action.
@@ -384,6 +387,26 @@ CLAVE para diferenciar EXCEPCIÓN vs CONTRASTE:
 - En el CONTRASTE el lead descarta el día actual con certeza y solo
   pregunta sobre el nuevo día
 
+CANCEL_PARTIAL — CUÁNDO USAR:
+
+Solo aplica cuando el lead tiene 2+ citas activas Y pide cancelar
+ESPECÍFICAMENTE una o algunas (no todas), manteniendo el resto.
+
+Ejemplos válidos (todos cancel_partial):
+- "Cancela solo la de mañana, la del jueves mantenla"
+- "La de mañana no puedo, pero la siguiente sí"
+- "Anula la primera, las otras déjalas como están"
+- "Mañana no puedo pero el viernes sí"
+- "La del martes muévela pero la del jueves no la toques"
+
+NO usar cancel_partial cuando:
+- El lead tiene solo 1 cita activa → siempre cancel_with_followup
+- El lead cancela TODAS las citas → cancel_with_followup (o no_followup si rechaza programa)
+- El lead pide reagendar una sola cita → cancel_with_followup (no partial)
+
+Para appointment_ids_to_noshow: incluye ÚNICAMENTE los ids de las citas
+que el lead quiere cancelar. Las demás NO van en esa lista.
+
 DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
 cancel_with_followup es el DEFAULT para CUALQUIER cancelación. Aplica cuando el lead simplemente
@@ -395,8 +418,7 @@ cancel_no_followup SOLO cuando el lead expresa RECHAZO TOTAL DEL PROGRAMA/AGENCI
 señales muy fuertes y explícitas como:
   - "ya no me interesa" / "perdí el interés"
   - "voy a tirar con otro entrenador" / "voy con otro"
-  - "ya tengo entrenador, no necesito otro" / "tengo coach, gracias, no me hace falta"
-  - "estoy entrenando con alguien, no necesito más"
+  - Lead menciona tener entrenador en tono firme → ver CASO ESPECIAL — LEAD MENCIONA TENER ENTRENADOR
   - "borra mis datos" / "quítame de tu lista" / "no me contactes más"
   - "déjame en paz" / "no me molestes más"
   - "paso completamente del tema" / "paso del tema, gracias"
@@ -424,10 +446,7 @@ INTENTS POSIBLES:
   para cualquier cancelación/reagendado con motivos no agresivos.
 - "cancel_no_followup": SOLO para rechazo total del programa con señales muy explícitas.
   Cancela TODAS las pre-enlace, sin seguimiento. Caso raro.
-- "cancel_partial": cancelar SOLO algunas citas concretas que el lead especificó, no todas.
-  Solo se usa cuando el lead tiene MÚLTIPLES citas activas Y pide cancelar solo una/algunas
-  concretas mientras MANTIENE las demás. NO usar cancel_partial para reschedules de una sola
-  cita — eso es cancel_with_followup.
+- "cancel_partial": cancelar SOLO algunas citas concretas (ver sección CANCEL_PARTIAL arriba).
 
 REGLAS GENERALES:
 - Mejor "no_action" si tienes la más mínima duda sobre si hay cancelación.
@@ -477,6 +496,31 @@ inclinándose al MENOR cuando esté en el medio:
   - "en 3, 4 o 5 días" → 3
   - "en 6 días o más" → 7
   - Sin plazo concreto + sin contexto de impedimento largo → 1 (default)
+
+CRITERIOS PARA \`confidence\` (consistencia entre clasificaciones):
+
+confidence refleja tu certeza sobre el intent que devuelves. Úsalo así:
+
+- 0.95-1.00: señal explícita y directa, sin ambigüedad
+  Ej: "cancela mañana" → cancel_with_followup, confidence=0.98
+  Ej: "perfecto, ahí estaré" → no_action, confidence=0.97
+
+- 0.85-0.94: señal clara pero requiere interpretar contexto multi-mensaje
+  Ej: lead pide cambio de día con motivo → cancel_with_followup, confidence=0.90
+  Ej: lead aplica excepción de retraso con cualificador → no_action, confidence=0.88
+
+- 0.80-0.84: aplicas una excepción específica que requiere lectura cuidadosa
+  Ej: lead incierto + ofrece confirmar → no_action, confidence=0.82
+  Ej: cancelación condicional con off-ramp → no_action, confidence=0.82
+
+- 0.70-0.79: caso límite. ATENCIÓN: el sistema fuerza no_action si confidence
+  < 0.80 para intents distintos de no_action. Si dudas a este nivel para una
+  cancelación, mejor devuelve no_action directamente.
+
+- <0.70: no debería ocurrir si aplicas "duda → no_action".
+
+REGLA: Si tu confidence quedaría <0.80 para un intent distinto de no_action,
+mejor devuelve no_action con confidence ~0.85.
 
 Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional):
 {
