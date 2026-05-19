@@ -330,6 +330,60 @@ Ejemplos donde NO aplica esta regla:
 - "no me funciona seguir con esto" → NO es técnico (es rechazo del programa).
 - "no me viene bien" → NO es técnico (es ajuste de agenda).
 
+EXCEPCIÓN — LEAD INCIERTO + OFRECE CONFIRMAR/DECIDIR MÁS TARDE:
+
+Si el lead expresa que NO ESTÁ SEGURO de poder asistir + ofrece confirmar
+o avisar más tarde como su opción PRINCIPAL (aunque mencione reagendar
+como alternativa), trata como no_action.
+
+El lead todavía NO ha tomado la decisión. El coach humano gestiona la
+espera de la confirmación. Esta excepción tiene PRIORIDAD sobre la
+REGLA CRÍTICA #1.
+
+REQUIERE AMBAS señales presentes en la unidad del mensaje del lead:
+
+(1) INCERTIDUMBRE genuina (no decisión tomada):
+- "puede que no pueda" / "igual no llego" / "no estoy seguro si podré"
+- "espero estar pero..." / "intento estar pero..." / "probablemente sí pero..."
+- "a ver si me da tiempo" / "a ver si llego" / "veremos cómo va"
+
+(2) OFRECIMIENTO de confirmar/avisar más tarde como opción PRINCIPAL:
+- "te confirmo mañana" / "te aviso por la mañana" / "te digo a la tarde"
+- "te confirmo en un rato" / "vamos viendo y te aviso" / "te confirmo más tarde"
+
+La reagenda puede aparecer como ALTERNATIVA con "O" (no como decisión):
+- "te confirmo mañana O cambiamos la cita"
+- "te aviso si voy, sino reagendamos"
+- "intento ir, sino te paso el enlace"
+
+Ejemplos completos (todos no_action — aplica PRINCIPIO DE LECTURA primero):
+- "Espero estar pero puede que no pueda... te confirmo mañana o cambiamos?"
+- "Mi padre está en el hospital, igual no llego, te confirmo por la mañana"
+- "A ver si me da tiempo, sino te aviso y reagendamos"
+- "Probablemente sí pero te confirmo en un rato"
+- "Tengo lío con el trabajo, no estoy seguro si podré, te aviso a la tarde"
+
+CONTRASTE — cancel_with_followup (el lead YA descartó el día actual):
+- "No puedo mañana, cambiamos?" (decisión firme + pregunta sobre nuevo día)
+- "Mañana imposible, qué huecos tenéis?" (descarta día actual claramente)
+- "Tengo que cambiar el día sí o sí" (decidido)
+- "No me va bien mañana, podemos pasarlo a otro día?" (firme: "no me va bien")
+
+POR QUÉ aplicar esta excepción en vez de la REGLA CRÍTICA #1:
+La defensa "cancelar siempre que se mencione reagenda" existe para
+protegernos cuando el lead AFIRMA haber reagendado sin hacerlo. Aquí
+es DIFERENTE: el lead explícitamente dice que aún no ha decidido y
+ofrece confirmar después. Si cancelamos preventivamente, marcamos
+no-show a un lead que probablemente sí venga, activamos seguimiento
+confuso, y el lead se siente no escuchado. La acción correcta es
+esperar la confirmación. Si finalmente cancela mañana con palabras
+firmes, el clasificador lo cogerá entonces.
+
+CLAVE para diferenciar EXCEPCIÓN vs CONTRASTE:
+- En la EXCEPCIÓN el lead aún no decidió + ofrece confirmar después
+- En el CONTRASTE el lead descarta el día actual con certeza y solo
+  pregunta sobre el nuevo día
+
 DISTINCIÓN CRÍTICA: cancel_with_followup vs cancel_no_followup
 
 cancel_with_followup es el DEFAULT para CUALQUIER cancelación. Aplica cuando el lead simplemente
@@ -362,7 +416,8 @@ INTENTS POSIBLES:
 - "no_action": conversación normal, confirmación, pregunta, lead reafirmó asistencia, ambigüedad,
   silencio post-link, lead ya reagendó (con marcador post-enlace), ajuste menor de hora
   del mismo día, aviso de retraso CON cualificador explícito, cancelación condicional
-  ("si X entonces cancelo"), o problema técnico de conexión CON término tecnológico explícito.
+  ("si X entonces cancelo"), problema técnico de conexión CON término tecnológico explícito,
+  o lead incierto que ofrece confirmar más tarde.
 - "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
   POST-ENLACE), o pide reagendar a otro día (incluso si dice que ya lo hizo, mientras no haya
   cita post-enlace en la lista) y se le debe poner en seguimiento automático. ES EL DEFAULT
