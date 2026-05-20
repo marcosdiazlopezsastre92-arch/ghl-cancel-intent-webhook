@@ -454,6 +454,15 @@ REGLAS GENERALES:
 - "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista. Si el lead no especifica
   cuál, asume TODAS las citas activas SIN el marcador POST-ENLACE.
 
+MAPEO INTENT → CAMPOS (qué llenar en cada caso):
+- no_action            → appointment_ids: [],  followup_delay: null
+- cancel_with_followup → appointment_ids: [todos los ids SIN marcador post-enlace],
+                         followup_delay: 1 / 3 / 7 (según POLÍTICA delay)
+- cancel_no_followup   → appointment_ids: [todos los ids SIN marcador post-enlace],
+                         followup_delay: null
+- cancel_partial       → appointment_ids: [solo los que el lead especificó],
+                         followup_delay: null
+
 REGLA ESTRICTA SOBRE followup_delay_days:
 followup_delay_days SOLO puede tomar uno de estos valores: 1, 3, 7, o null.
 
