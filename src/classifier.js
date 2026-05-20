@@ -690,6 +690,9 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   if (rejected.length > 0) logger.warn('claude returned invalid appointment ids', { rejected });
 
   let conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+  // When set true (after Sonnet overrides Haiku in double-check), Sonnet's
+  // decision is trusted and the confidence threshold bypass is skipped.
+  let trustedFromDoubleCheck = false;
 
   // ============== DOUBLE-CHECK with Sonnet ==============
   // When Haiku returns a cancel intent with low confidence, ask Sonnet to
@@ -759,6 +762,11 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
         parsed = sonnetParsed;
         conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
         parsed.reasoning = `[Double-check Sonnet from ${haikuIntent}@${haikuConfidence.toFixed(2)}] ${sonnetReasoning}`.trim();
+        // Mark as trusted so the confidence threshold bypass below doesn't
+        // demote Sonnet's verdict to no_action. Once Sonnet (the larger
+        // model used specifically for this safety net) has reviewed, its
+        // decision is final regardless of confidence value.
+        trustedFromDoubleCheck = true;
       } else {
         logger.warn('double-check sonnet returned invalid/unparseable, keeping haiku', {
           rawText: (sonnetRes.text || '').slice(0, 500),
@@ -774,7 +782,11 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   // ============== END DOUBLE-CHECK ==============
 
   const effectiveThreshold = threshold ?? (leadAfterLink ? POST_LINK_AMBIGUOUS_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
-  if (parsed.intent !== 'no_action' && conf < effectiveThreshold) {
+  // Confidence threshold bypass only applies when the decision came directly
+  // from Haiku. If Sonnet's double-check overrode Haiku, we trust Sonnet's
+  // verdict regardless of its confidence value (it was reviewed by the
+  // larger model specifically for ambiguous cases).
+  if (parsed.intent !== 'no_action' && conf < effectiveThreshold && !trustedFromDoubleCheck) {
     logger.info('classification below threshold → no_action', { confidence: conf, threshold: effectiveThreshold, leadAfterLink });
     return {
       ok: true, bypass: 'low-confidence',
@@ -783,6 +795,14 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
                   reasoning: `Below threshold (${conf} < ${effectiveThreshold}). Original: ${parsed.reasoning || ''}` },
       claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink, doubleCheckMeta,
     };
+  }
+
+  if (trustedFromDoubleCheck && conf < effectiveThreshold) {
+    logger.warn('trusting sonnet override despite low confidence', {
+      sonnet_intent: parsed.intent,
+      sonnet_confidence: conf,
+      threshold: effectiveThreshold,
+    });
   }
 
   if (parsed.intent !== 'no_action' && parsed.appointment_ids_to_noshow.length === 0) {
