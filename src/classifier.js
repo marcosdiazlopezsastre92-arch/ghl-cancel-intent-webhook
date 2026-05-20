@@ -122,6 +122,16 @@ tres señales claras:
 - "lo cambio ahora" / "lo estoy moviendo"
 - "perfecto, reagendo" / "miro y reagendo"
 
+  REGLA SUB-(A) — VERBOS EN 1ª PERSONA PRESENTE INDICATIVO:
+  Cualquier verbo de reagendar/cambiar/mover en 1ª persona presente indicativo
+  ("reagendo", "cambio", "muevo", "lo paso", "lo dejo para [día]") es AFIRMACIÓN
+  FIRME aunque no lleve "ya" ni "ahora" delante. El lead está declarando que lo
+  hace, no preguntando.
+  - "reagendo" / "perfecto reagendo" / "vale, reagendo" → cancel ✓
+  - "cambio la cita" / "la muevo yo" / "lo paso al sábado" → cancel ✓
+  NO confundir con CONDICIONAL ("si reagendo te aviso", "voy a ver si lo cambio",
+  "intentaré moverla") → ahí no hay decisión, va a EXCEPCIÓN LEAD INCIERTO.
+
 (B) ORDEN DIRECTA / IMPERATIVA:
 - "muévelo al sábado" / "cambia la llamada al jueves"
 - "pasa la cita al lunes" / "ponla el viernes mejor"
@@ -148,6 +158,27 @@ Ejemplos del caso (C):
 - "no me va bien mañana, podemos cambiar el día?" (Laura) → cancel ✓
 - "estoy de viaje mañana, hay opción otro día?" → cancel ✓
 - "tengo lío mañana, podemos pasarla?" → cancel ✓
+
+CHEQUEO OBLIGATORIO ANTES DE ELEGIR cancel_with_followup — ¿ES cancel_partial?
+
+Si has decidido cancelar Y el lead tiene 2+ citas futuras activas, PARA y verifica:
+¿el lead pide cancelar SOLO algunas, manteniendo el resto explícitamente?
+
+Señales de "mantener el resto":
+- "las otras déjalas" / "las próximas mantenlas" / "no las toques"
+- "la del [día] sí" / "la siguiente la mantengo"
+- "solo cancela la de [día concreto]"
+- "mantén la del [día] como está"
+
+Si SÍ → intent = cancel_partial (NO cancel_with_followup),
+        appointment_ids_to_noshow = SOLO los ids que el lead descartó,
+        followup_delay_days = null.
+
+Ejemplo del fallo típico:
+- 3 citas activas. Lead: "Mañana no puedo, las próximas mantenlas como están"
+- INCORRECTO: cancel_with_followup con id de mañana (activaría seguimiento que
+  interfiere con las otras 2 citas que SÍ siguen activas)
+- CORRECTO: cancel_partial con id de mañana, sin followup.
 
 REGLA "PALABRAS NO SON PRUEBA DE REAGENDADO REAL — POR ESO CANCELAMOS":
 
@@ -213,6 +244,7 @@ para en la primera que coincida):
 6. PREGUNTAS EXPLORATORIAS SIN DESCARTE → no_action
 7. CASO ESPECIAL ENTRENADOR → no_action (soft) o cancel_no_followup (firme)
 8. REGLA CRÍTICA #1 (A, B, C) → cancel_with_followup
+   (con CHEQUEO obligatorio de cancel_partial si hay 2+ citas activas)
 9. Default si nada aplica → no_action
 
 EXCEPCIÓN — PREGUNTAS EXPLORATORIAS SOBRE CAMBIO SIN DESCARTE:
@@ -230,8 +262,10 @@ VERBOS DE EXPLORACIÓN PURA: "sería posible", "habría opción", "tendrías hue
 VERBOS DE DECISIÓN PROPUESTA (1ª persona plural): "cambiamos", "movemos", "pasamos".
 Sin descarte → no_action (propuesta sin confirmar). Con descarte → cancel.
 
-NO APLICA esta excepción a afirmaciones firmes ("ya reagendé") ni órdenes
-("muévelo"). Esos siguen siendo cancel_with_followup.
+NO APLICA esta excepción a:
+- AFIRMACIONES FIRMES en 1ª persona singular ("reagendo", "lo cambio", "muevo")
+  → siempre cancel_with_followup (ver REGLA SUB-(A))
+- ÓRDENES ("muévelo", "cámbialo") → cancel_with_followup
 
 Ejemplos no_action:
 - "Podemos cambiar al sábado?" / "Hay opción del jueves?"
@@ -389,11 +423,16 @@ CANCEL_PARTIAL — CUÁNDO USAR:
 Solo aplica si lead tiene 2+ citas activas Y pide cancelar específicamente
 una/algunas (no todas), manteniendo el resto.
 
+SEÑAL CLAVE: el lead menciona EXPLÍCITAMENTE mantener las otras citas:
+"las próximas mantenlas", "las otras déjalas", "no las toques",
+"la del [día] sí", "mantén la del [día]", "la siguiente la mantengo".
+
 Ejemplos válidos:
 - "Cancela solo la de mañana, la del jueves mantenla"
 - "La de mañana no puedo, pero la siguiente sí"
 - "Anula la primera, las otras déjalas"
 - "La del martes muévela pero la del jueves no la toques"
+- "Mañana no puedo, las próximas mantenlas como están"
 
 NO usar cancel_partial:
 - 1 cita activa → siempre cancel_with_followup
