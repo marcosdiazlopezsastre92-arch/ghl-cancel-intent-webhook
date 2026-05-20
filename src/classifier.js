@@ -18,9 +18,6 @@ const {
 
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 
-// Double-check configuration. When Haiku returns a cancel intent with
-// confidence below the threshold, we ask Sonnet to verify. Sonnet's
-// verdict overrides Haiku's.
 const DOUBLE_CHECK_ENABLED = process.env.DOUBLE_CHECK_ENABLED !== 'false';
 const DOUBLE_CHECK_THRESHOLD = parseFloat(process.env.DOUBLE_CHECK_THRESHOLD || '0.90');
 const DOUBLE_CHECK_MODEL = process.env.DOUBLE_CHECK_MODEL || 'claude-sonnet-4-6';
@@ -141,11 +138,30 @@ tres señales claras:
 - "muévelo al sábado" / "cambia la llamada al jueves"
 - "pasa la cita al lunes" / "ponla el viernes mejor"
 
-(C) PREGUNTA O PROPUESTA + DESCARTE EXPLÍCITO del día actual:
-- "no puedo mañana, cambiamos día?"
-- "imposible el viernes, qué huecos hay?"
-- "no me va bien el jueves, podemos pasarla?"
-- "mañana mo me va bien la llamada, podemos cambiar el día?" (caso Laura)
+(C) PREGUNTA O PROPUESTA + DESCARTE EXPLÍCITO O IMPLÍCITO del día actual:
+
+  DESCARTE EXPLÍCITO (palabras directas de imposibilidad):
+  - "no puedo el [día]" / "no podré asistir"
+  - "no me va bien el [día]" / "no me viene bien"
+  - "imposible el [día]" / "es imposible"
+  - "tengo que cancelar" / "tengo que mover sí o sí"
+
+  DESCARTE IMPLÍCITO (describe situación que claramente impide ir):
+  - "estoy fuera mañana" / "estoy de viaje"
+  - "tengo lío mañana" / "tengo movida ese día"
+  - "voy mal de tiempo mañana" / "estoy hasta arriba mañana"
+  - "tengo cita médica mañana" / "estoy malo"
+  - "me ha salido reunión mañana"
+  - "tengo boda/funeral/viaje mañana"
+
+  Estos descartes implícitos cuentan IGUAL que los explícitos para REGLA CRÍTICA #1.
+  Si el lead describe situación que impide ir + pide cambio → cancel_with_followup.
+
+Ejemplos completos del caso (C):
+- "no puedo mañana, cambiamos día?" → cancel ✓
+- "no me va bien mañana, podemos cambiar el día?" (caso Laura) → cancel ✓
+- "estoy de viaje mañana, hay opción otro día?" → cancel ✓ (descarte implícito)
+- "tengo lío mañana, podemos pasarla?" → cancel ✓ (descarte implícito)
 
 REGLA "PALABRAS NO SON PRUEBA DE REAGENDADO REAL":
 Cuando aplicas esta regla, devuelve cancel_with_followup A MENOS QUE en la lista de
@@ -196,32 +212,51 @@ REGLAS POST-ENLACE (cuando el Coach envió el [ENVIÓ ENLACE DE REAGENDAR]):
 EXCEPCIÓN — PREGUNTAS EXPLORATORIAS SOBRE CAMBIO SIN DESCARTE EXPLÍCITO:
 
 Si el lead PREGUNTA o PROPONE un cambio de fecha/hora pero NO descarta
-explícitamente el día actual, trata como no_action. El lead está
+explícita NI implícitamente el día actual, trata como no_action. El lead está
 explorando, no decidiendo. Esta excepción tiene PRIORIDAD sobre la
 REGLA CRÍTICA #1.
 
 REQUIERE AMBAS condiciones:
 (1) El lead pregunta o propone un cambio (puede mencionar día/hora alternativos)
-(2) El lead NO menciona explícitamente que no puede el día actual
-    (no aparecen frases como "no puedo el [día]", "no me va bien", "imposible",
-    "tengo que cancelar", "no llegaré", "no asistiré")
+(2) El lead NO menciona ni explícita ni implícitamente que no puede el día actual.
+    NO aparece ninguno de estos descartes:
+    - "no puedo el [día]", "no me va bien", "imposible", "tengo que cancelar"
+    - "no llegaré", "no asistiré"
+    - "estoy fuera", "estoy de viaje", "tengo lío", "voy mal de tiempo"
+    - "tengo cita médica", "tengo boda", "estoy malo", "me ha salido reunión"
+
+VERBOS QUE INDICAN EXPLORACIÓN PURA (sin decisión):
+- "sería posible" / "habría opción" / "habría disponibilidad"
+- "tendrías hueco" / "tienes algún hueco"
+- "podría ser" / "se podría"
+- "es posible" / "hay opción" / "hay forma"
+
+VERBOS QUE INDICAN DECISIÓN PROPUESTA (1ª persona plural imperativo suavizado):
+- "cambiamos" / "movemos" / "pasamos"
+- Estos están a medio camino: son decisión propuesta, no exploración pura.
+- Si NO hay descarte explícito ni implícito → sigue siendo no_action (la decisión
+  está propuesta pero no confirmada — esperamos confirmación clara del lead).
+- Si HAY descarte → cancel_with_followup (la decisión queda confirmada por descarte).
 
 Ejemplos (todos no_action):
-- "Podemos cambiar la llamada al sábado?"
+- "Podemos cambiar la llamada al sábado?" (sin descarte)
 - "Hay opción del jueves a las 18?"
 - "Tendrías hueco el lunes que viene?"
 - "Sería posible pasarla a otro día?"
 - "Podría ser para el viernes a las 19?"
 - "Y si lo movemos al miércoles?"
 - "Mejor el sábado, no?"
-- "Podemos cambiar la llamada al jueves?" (sin descarte)
+- "Cambiamos día?" (decisión propuesta sin confirmar + sin descarte)
+- "Movemos al jueves?" (decisión propuesta sin confirmar)
 - "Posibilidad para el sábado a la misma hora?"
 
-CONTRASTE — cancel_with_followup (descarte explícito + cambio):
-- "Mañana no puedo, cambiamos día?" (descarte: "no puedo mañana")
+CONTRASTE — cancel_with_followup (descarte explícito o implícito + cambio):
+- "Mañana no puedo, cambiamos día?" (descarte explícito: "no puedo mañana")
 - "Imposible el jueves, qué huecos hay?" (descarte: "imposible")
 - "No me va bien el viernes, podemos cambiar?" (descarte: "no me va bien")
 - "Mañana mo me va bien la llamada, podemos cambiar el día?" (Laura — descarte)
+- "Estoy fuera mañana, hay opción otro día?" (descarte implícito: "estoy fuera")
+- "Tengo lío mañana, pasamos a otro día?" (descarte implícito)
 - "Tengo que cambiar el día sí o sí" (afirmación firme)
 
 CONTRASTE — cancel_with_followup (afirmación firme o orden):
@@ -232,8 +267,8 @@ CONTRASTE — cancel_with_followup (afirmación firme o orden):
 - "Pasa la cita al miércoles" (orden directa)
 
 CLAVE para diferenciar:
-- Pregunta/propuesta + SIN descarte explícito del día actual → no_action (exploración)
-- Pregunta/propuesta + CON descarte explícito → cancel_with_followup (decisión)
+- Pregunta/propuesta + SIN descarte (ni explícito ni implícito) → no_action (exploración)
+- Pregunta/propuesta + CON descarte (explícito o implícito) → cancel_with_followup (decisión)
 - Afirmación firme ("ya cambié", "lo cambio ahora") → cancel_with_followup (decisión)
 - Orden directa ("muévelo", "cambia") → cancel_with_followup (decisión)
 
@@ -359,10 +394,19 @@ SUAVIZADO (Y de un condicional → no_action si hay objeción):
   "mejor no", "prefiero no", "no hace falta", "lo dejamos", "déjalo",
   "no perdamos el tiempo", "no tiene sentido"
   → El lead ofrece OFF-RAMP, espera respuesta del coach.
+  → Aplica solo en estructura "si X entonces Y" con objeción.
 
-FIRME (cancelación directa → cancel_with_followup):
-  "cancela", "anula", "no voy", "no asistiré", "no puedo ir", "tengo que cancelar"
+FIRME (cancelación o descarte directo → cancel_with_followup):
+  - Acciones de cancelación: "cancela", "anula", "tengo que cancelar"
+  - No-asistencia: "no voy", "no asistiré", "no puedo ir", "imposible ir"
+  - Descarte del día concreto: "no me va bien [día]", "no puedo el [día]",
+    "imposible el [día]", "no me viene bien"
   → El lead ya decidió, NO espera respuesta del coach.
+
+NOTA: "no me va bien [día concreto]" cuenta como DESCARTE FIRME del día (NO suavizado).
+Solo es suavizado si va dentro de una estructura condicional ("si dura mucho, no
+me va bien" → suavizado). Cuando se refiere directamente a un día ("mañana no me
+va bien") → firme.
 
 EXCEPCIÓN AL EXCEPCIÓN: si tras la objeción condicional el lead AÑADE lenguaje FIRME
 ("es caro. cancela definitivamente", "no me convence, anula"), prevalece la cancelación
@@ -512,11 +556,11 @@ INTENTS POSIBLES:
   del mismo día, aviso de retraso CON cualificador explícito, cancelación condicional
   ("si X entonces cancelo"), problema técnico de conexión CON término tecnológico explícito,
   lead incierto que ofrece confirmar más tarde, o pregunta exploratoria sobre cambio
-  SIN descarte explícito del día actual.
+  SIN descarte explícito ni implícito del día actual.
 - "cancel_with_followup": el lead afirma firmemente cancelar/reagendar, da orden directa
-  ("muévelo al X"), o pregunta sobre cambio CON descarte explícito del día actual
-  ("no puedo mañana, cambiamos?"). ES EL DEFAULT para cualquier cancelación/reagendado
-  firme con motivos no agresivos.
+  ("muévelo al X"), o pregunta sobre cambio CON descarte explícito o implícito del día actual
+  ("no puedo mañana, cambiamos?", "estoy fuera mañana, hay otro día?"). ES EL DEFAULT
+  para cualquier cancelación/reagendado firme con motivos no agresivos.
 - "cancel_no_followup": SOLO para rechazo total del programa con señales muy explícitas.
   Cancela TODAS las pre-enlace, sin seguimiento. Caso raro.
 - "cancel_partial": cancelar SOLO algunas citas concretas (ver sección CANCEL_PARTIAL arriba).
