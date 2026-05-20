@@ -31,6 +31,15 @@ const SCRIPT_APPLIED_TAG = {
   name: 'script cancel-intent aplicado',
 };
 
+// Audit tag added every time the Sonnet double-check fires (regardless of
+// whether Sonnet confirmed or changed the Haiku decision). Lets Marcos
+// filter in GHL all contacts whose intent classification was reviewed by
+// the safety net.
+const SONNET_REVIEWED_TAG = {
+  id: 'BR99TFFalPsBf2bfquUk',
+  name: 'intent revisado por sonnet',
+};
+
 const CANCELLED_STATUSES = new Set(['cancelled', 'canceled', 'noshow', 'no_show']);
 
 const DEFAULT_CONFIDENCE_THRESHOLD = parseFloat(process.env.CONFIDENCE_THRESHOLD || '0.80');
@@ -49,7 +58,7 @@ const DEFAULT_MESSAGES_LOOKBACK = parseInt(process.env.MESSAGES_LOOKBACK || '15'
 module.exports = {
   LOCATION_ID, GHL_API_BASE, GHL_API_VERSIONS, FUTURE_WINDOW_DAYS,
   CUSTOM_FIELDS,
-  CANCELLATION_NOTICE_TAG, SCRIPT_APPLIED_TAG,
+  CANCELLATION_NOTICE_TAG, SCRIPT_APPLIED_TAG, SONNET_REVIEWED_TAG,
   CANCELLED_STATUSES,
   DEFAULT_CONFIDENCE_THRESHOLD,
   DEFAULT_CLAUDE_MODEL,
