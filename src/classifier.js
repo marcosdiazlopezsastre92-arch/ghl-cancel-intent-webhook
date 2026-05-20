@@ -158,15 +158,16 @@ envio del enlace de reagendar".
 LÓGICA CRÍTICA — NO confundir con no_action:
 - "ya reagendé" + NO hay marcador post-enlace → cancel_with_followup ✓
   (probablemente lead NO lo hizo realmente — marca no-show + activa seguimiento)
-- "ya reagendé" + SÍ hay marcador post-enlace → la cita post-enlace NO va a
-  appointment_ids_to_noshow; las citas VIEJAS sí van a cancel
+- "ya reagendé" + SÍ hay marcador post-enlace → intent: cancel_with_followup
+  (NO cancel_partial). La cita post-enlace NO va a appointment_ids_to_noshow;
+  las citas VIEJAS sí van a cancel. followup_delay_days = 1 (default).
 - "lo cambio ahora" / "muévelo al X" → cancel_with_followup
 - "no puedo mañana, cambiamos?" → cancel_with_followup
 
 ERROR FRECUENTE A EVITAR: leer "palabras no son prueba" como razón para no_action.
 Es lo CONTRARIO. Las palabras te dicen que el lead NO va a la cita actual, así
 que CANCELA por defensa. Solo el marcador FÍSICO de cita post-enlace cambia esa
-conclusión defensiva.
+conclusión defensiva (y aun así las citas VIEJAS se cancelan).
 
 NO APLICA esta regla (ve a EXCEPCIÓN PREGUNTAS EXPLORATORIAS más abajo) si:
 El lead solo PREGUNTA o PROPONE un cambio sin descartar el día actual:
@@ -200,6 +201,19 @@ REGLAS POST-ENLACE (cuando el Coach envió el [ENVIÓ ENLACE DE REAGENDAR]):
 ═══════════════════════════════════════════════════════════════════════════════
 EXCEPCIONES (todas con PRIORIDAD sobre REGLA CRÍTICA #1):
 ═══════════════════════════════════════════════════════════════════════════════
+
+ORDEN DE PRECEDENCIA cuando aplican múltiples excepciones (evalúa en este orden,
+para en la primera que coincida):
+
+1. PROBLEMAS TÉCNICOS (si hay término técnico explícito) → no_action
+2. RETRASOS (si hay cualificador "tarde"/minutos/"al inicio") → no_action
+3. LEAD INCIERTO + OFRECE CONFIRMAR (requiere AMBAS señales) → no_action
+4. CANCELACIONES CONDICIONALES (estructura "SI X ENTONCES Y") → no_action
+5. AJUSTES HORA MISMO DÍA (sin cambio de día) → no_action
+6. PREGUNTAS EXPLORATORIAS SIN DESCARTE → no_action
+7. CASO ESPECIAL ENTRENADOR → no_action (soft) o cancel_no_followup (firme)
+8. REGLA CRÍTICA #1 (A, B, C) → cancel_with_followup
+9. Default si nada aplica → no_action
 
 EXCEPCIÓN — PREGUNTAS EXPLORATORIAS SOBRE CAMBIO SIN DESCARTE:
 
@@ -326,10 +340,13 @@ APLICA SOLO si menciona EXPLÍCITAMENTE alguno de estos términos:
 1. Software videollamada: Zoom, Meet, Google Meet, Discord, Teams, Skype, FaceTime
 2. Hardware: cámara, micrófono, audio, ordenador, móvil, portátil, tablet
 3. Acceso: "el link/enlace", "la sala", "el room", "la URL"
-4. Conexión: "entrar" (a la sala/llamada), "conectar", "cargar"
+4. Conexión local: "entrar" (a la sala/llamada), "conectar", "cargar"
+5. Red/internet: "wifi", "internet", "conexión", "red", "datos móviles", "cobertura", "señal"
 
 Ejemplos válidos: "no me funciona Zoom", "no puedo entrar, dame otro link?",
-"no me carga la cámara", "se me ha colgado el ordenador", "Zoom me pide actualizar".
+"no me carga la cámara", "se me ha colgado el ordenador", "Zoom me pide actualizar",
+"no tengo wifi", "se ha caído internet", "no tengo cobertura ahora mismo",
+"se me ha ido la señal".
 
 CRÍTICO: si "no me sale/funciona/entra" NO va con término tecnológico explícito,
 NO es técnico:
@@ -382,6 +399,8 @@ NO usar cancel_partial:
 - 1 cita activa → siempre cancel_with_followup
 - Cancela TODAS → cancel_with_followup (o no_followup si rechaza programa)
 - Reagendar una sola cita → cancel_with_followup
+- Lead afirma "ya reagendé" Y hay cita post-enlace en lista → cancel_with_followup
+  (NO partial, aunque parezca; ver REGLA PALABRAS NO SON PRUEBA arriba)
 
 appointment_ids_to_noshow: ÚNICAMENTE los ids que el lead especificó cancelar.
 
@@ -415,14 +434,15 @@ REGLAS GENERALES + MAPEO INTENT → CAMPOS:
 - Mejor "no_action" si tienes la más mínima duda sobre si hay cancelación/reagenda.
 - "appointment_ids_to_noshow" contiene ÚNICAMENTE ids de la lista activa.
 
-MAPEO:
-- no_action            → appointment_ids: [],  followup_delay: null
-- cancel_with_followup → appointment_ids: [todos los ids SIN marcador post-enlace],
-                         followup_delay: 1 / 3 / 7
-- cancel_no_followup   → appointment_ids: [todos los ids SIN marcador post-enlace],
-                         followup_delay: null
-- cancel_partial       → appointment_ids: [solo los que el lead especificó],
-                         followup_delay: null
+MAPEO (usa EXACTAMENTE estos nombres de campo en el JSON output):
+- no_action            → appointment_ids_to_noshow: [],
+                         followup_delay_days: null
+- cancel_with_followup → appointment_ids_to_noshow: [todos los ids SIN marcador post-enlace],
+                         followup_delay_days: 1 / 3 / 7
+- cancel_no_followup   → appointment_ids_to_noshow: [todos los ids SIN marcador post-enlace],
+                         followup_delay_days: null
+- cancel_partial       → appointment_ids_to_noshow: [solo los que el lead especificó],
+                         followup_delay_days: null
 
 ═══════════════════════════════════════════════════════════════════════════════
 POLÍTICA followup_delay_days:
