@@ -195,6 +195,7 @@ async function runSuite({ suite, verbose, categoryFilter, limit, delayMs = 0 }) 
       bypass: cls.bypass || null,
       rescheduleLinkSent: cls.rescheduleLinkSent || false,
       reasoning: cls.decision?.reasoning,
+      doubleCheckMeta: cls.doubleCheckMeta || null,
       pass,
       elapsedMs: Date.now() - caseStarted,
     });
@@ -214,6 +215,19 @@ async function runSuite({ suite, verbose, categoryFilter, limit, delayMs = 0 }) 
       return a.category.localeCompare(b.category);
     });
 
+  // Double-check stats: how often the safety net fired and whether Sonnet
+  // changed or confirmed Haiku's decision.
+  let doubleCheckTriggered = 0;
+  let doubleCheckChanged = 0;
+  let doubleCheckConfirmed = 0;
+  for (const r of results) {
+    if (r.doubleCheckMeta && r.doubleCheckMeta.triggered) {
+      doubleCheckTriggered += 1;
+      if (r.doubleCheckMeta.changed) doubleCheckChanged += 1;
+      else doubleCheckConfirmed += 1;
+    }
+  }
+
   const failures = results.filter((r) => !r.pass);
 
   const response = {
@@ -227,6 +241,14 @@ async function runSuite({ suite, verbose, categoryFilter, limit, delayMs = 0 }) 
     filter: categoryFilter || null,
     limit: Number.isFinite(limit) ? limit : null,
     byCategory,
+    doubleCheck: {
+      triggered: doubleCheckTriggered,
+      changed: doubleCheckChanged,
+      confirmed: doubleCheckConfirmed,
+      changeRate: doubleCheckTriggered > 0
+        ? Math.round((doubleCheckChanged / doubleCheckTriggered) * 100)
+        : 0,
+    },
     failures,
   };
   if (verbose) response.cases = results;
