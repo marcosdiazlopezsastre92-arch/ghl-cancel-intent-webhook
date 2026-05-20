@@ -1,6 +1,12 @@
 'use strict';
 
-const { LOCATION_ID, CUSTOM_FIELDS, CANCELLATION_NOTICE_TAG, SCRIPT_APPLIED_TAG } = require('./config');
+const {
+  LOCATION_ID,
+  CUSTOM_FIELDS,
+  CANCELLATION_NOTICE_TAG,
+  SCRIPT_APPLIED_TAG,
+  SONNET_REVIEWED_TAG,
+} = require('./config');
 const { parsePayload } = require('./payload');
 const { classify } = require('./classifier');
 const {
@@ -59,6 +65,7 @@ async function setContactCustomFields({ authorization, contactId, fields }) {
 async function handleCancelIntent({ authorization, body, query, apiKey, openaiApiKey }) {
   const warnings = [];
   const errors = [];
+  const actionsTaken = [];
 
   const parsed = parsePayload(body, query);
   const { contactId, locationId, dryRun } = parsed;
@@ -107,7 +114,54 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     return { status: 502, json: { ok: false, error: 'classification-failed', detail: cls } };
   }
   const decision = cls.decision;
-  logger.info('classification', { decision, bypass: cls.bypass, transcription: cls.transcriptionStats || null });
+  logger.info('classification', {
+    decision,
+    bypass: cls.bypass,
+    transcription: cls.transcriptionStats || null,
+    doubleCheckTriggered: !!(cls.doubleCheckMeta && cls.doubleCheckMeta.triggered),
+  });
+
+  // ============== SONNET REVIEW AUDIT TAG ==============
+  // If the double-check fired (regardless of final intent or whether Sonnet
+  // confirmed/changed Haiku's decision), tag the contact for monitoring.
+  // This runs BEFORE the early returns so it applies even when the final
+  // intent is no_action (e.g. Sonnet overrode Haiku's cancel decision).
+  const sonnetReviewed = !!(cls.doubleCheckMeta && cls.doubleCheckMeta.triggered);
+  if (sonnetReviewed) {
+    if (dryRun) {
+      actionsTaken.push({
+        type: 'add-tag',
+        tag: SONNET_REVIEWED_TAG.name,
+        reason: 'sonnet-double-check',
+        dryRun: true,
+      });
+    } else {
+      try {
+        const sonnetTagRes = await addContactTags({
+          authorization, contactId,
+          tags: [SONNET_REVIEWED_TAG.name],
+        });
+        if (sonnetTagRes.ok) {
+          actionsTaken.push({
+            type: 'add-tag',
+            tag: SONNET_REVIEWED_TAG.name,
+            reason: 'sonnet-double-check',
+            shape: Object.keys(sonnetTagRes.body || {}).join(','),
+          });
+        } else {
+          warnings.push({
+            type: 'failed-to-add-sonnet-reviewed-tag',
+            detail: sonnetTagRes.errors,
+          });
+        }
+      } catch (err) {
+        warnings.push({
+          type: 'failed-to-add-sonnet-reviewed-tag',
+          error: err.message,
+        });
+      }
+    }
+  }
 
   if (decision.intent === 'audio_needs_review') {
     warnings.push('audio-detected: last inbound is a voice note and could not be transcribed.');
@@ -116,7 +170,8 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       json: {
         ok: true, decision, bypass: cls.bypass, dryRun,
         foundActiveAppointments: appointments.length,
-        actionsTaken: [], transcription: cls.transcriptionStats || null, warnings,
+        actionsTaken, transcription: cls.transcriptionStats || null, warnings,
+        doubleCheckMeta: cls.doubleCheckMeta || null,
       },
     };
   }
@@ -127,12 +182,13 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       json: {
         ok: true, decision, bypass: cls.bypass, dryRun,
         foundActiveAppointments: appointments.length,
-        transcription: cls.transcriptionStats || null, actionsTaken: [],
+        transcription: cls.transcriptionStats || null,
+        actionsTaken,
+        doubleCheckMeta: cls.doubleCheckMeta || null,
       },
     };
   }
 
-  const actionsTaken = [];
   const idsToCancel = decision.appointment_ids_to_noshow || [];
   const targets = appointments.filter((a) => idsToCancel.includes(String(a.id)));
 
@@ -224,7 +280,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     }
   }
 
-  // 3) Tags.
+  // 3) Tags (cancel-related).
   // Two tags with DIFFERENT semantics:
   //   - CANCELLATION_NOTICE_TAG ("inv x cancelación avisada"): swap-rate
   //     metric. Only on FULL cancels (with_followup / no_followup) where
@@ -234,6 +290,9 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   //   - SCRIPT_APPLIED_TAG ("script cancel-intent aplicado"): audit filter.
   //     Applied on ALL cancel variants (with_followup, no_followup, partial)
   //     so Marcos can review every action the script took in GHL.
+  //
+  // Note: SONNET_REVIEWED_TAG is handled separately above (runs regardless
+  // of intent, even on no_action when Sonnet overrode Haiku).
   const isFullCancel = (decision.intent === 'cancel_with_followup'
                      || decision.intent === 'cancel_no_followup');
   const isAnyCancel = isFullCancel || decision.intent === 'cancel_partial';
@@ -277,6 +336,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       rejectedClaudeIds: cls.rejectedIds || [],
       transcription: cls.transcriptionStats || null,
       actionsTaken, warnings, errors, dryRun,
+      doubleCheckMeta: cls.doubleCheckMeta || null,
     },
   };
 }
