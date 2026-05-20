@@ -21,28 +21,14 @@ const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 // Double-check configuration. When Haiku returns a cancel intent with
 // confidence below the threshold, we ask Sonnet to verify. Sonnet's
 // verdict overrides Haiku's.
-//
-// Rationale (data from 43-case analysis on 2026-05-20):
-//   - Haiku confidence on cancellations averages 0.964 (min 0.92)
-//   - Confidence <0.90 signals genuinely ambiguous cases
-//   - Expected activation: ~1-2 cases/week in production
-//   - Expected cost: ~$0-2/month (negligible)
-//
-// Configure via env vars to allow runtime tuning without code changes.
 const DOUBLE_CHECK_ENABLED = process.env.DOUBLE_CHECK_ENABLED !== 'false';
 const DOUBLE_CHECK_THRESHOLD = parseFloat(process.env.DOUBLE_CHECK_THRESHOLD || '0.90');
 const DOUBLE_CHECK_MODEL = process.env.DOUBLE_CHECK_MODEL || 'claude-sonnet-4-6';
-// Only these intents trigger double-check. cancel_partial is excluded
-// because the lead's specific id selection is too contextual for Sonnet
-// to safely override.
 const DOUBLE_CHECK_INTENTS = new Set([
   'cancel_with_followup',
   'cancel_no_followup',
 ]);
 
-// Canonical intent values Claude is allowed to return.
-// Note: 'audio_needs_review' is set by us internally when the audio bypass
-// kicks in, never by Claude.
 const VALID_INTENTS = new Set([
   'no_action',
   'cancel_with_followup',
@@ -140,25 +126,48 @@ que es la consecuencia condicional del "si no es posible".
 Aplica este principio a TODO: cancelaciones, retrasos, reagendados, condicionales, problemas
 técnicos, ajustes menores de hora, confirmaciones. Lo mismo aplica a los mensajes del coach.
 
-REGLA CRÍTICA #1 — LAS PALABRAS DEL LEAD NUNCA SON PRUEBA DE REAGENDADO:
-Si el lead expresa CUALQUIER intención de reagendar/cambiar la llamada — preguntando
-("podemos cambiarla?", "podemos pasar al jueves?", "me viene mejor la semana que viene",
-"me pasas a otra fecha?"), prometiendo ("lo cambio ahora", "perfecto, reagendo",
-"miro y reagendo"), o incluso AFIRMANDO que ya lo hizo ("ya cambié", "ya reagendé",
-"mil gracias, reagendo ahora", "ya cambio la cita, gracias", "perfecto, cambio para
-mañana") — SIEMPRE devuelve cancel_with_followup, A MENOS QUE en la lista de
+REGLA CRÍTICA #1 — REAGENDADO REQUIERE DECISIÓN FIRME O DESCARTE EXPLÍCITO:
+
+Solo devuelve cancel_with_followup ante reagendado cuando el lead expresa UNA de estas
+tres señales claras:
+
+(A) AFIRMACIÓN FIRME de haberlo hecho o estar haciéndolo:
+- "ya cambié" / "ya reagendé"
+- "lo cambio ahora" / "lo estoy moviendo"
+- "perfecto, reagendo" / "miro y reagendo"
+- "mil gracias, ya cambio la cita"
+
+(B) ORDEN DIRECTA / IMPERATIVA:
+- "muévelo al sábado" / "cambia la llamada al jueves"
+- "pasa la cita al lunes" / "ponla el viernes mejor"
+
+(C) PREGUNTA O PROPUESTA + DESCARTE EXPLÍCITO del día actual:
+- "no puedo mañana, cambiamos día?"
+- "imposible el viernes, qué huecos hay?"
+- "no me va bien el jueves, podemos pasarla?"
+- "mañana mo me va bien la llamada, podemos cambiar el día?" (caso Laura)
+
+REGLA "PALABRAS NO SON PRUEBA DE REAGENDADO REAL":
+Cuando aplicas esta regla, devuelve cancel_with_followup A MENOS QUE en la lista de
 "LLAMADAS FUTURAS ACTIVAS" veas explícitamente una cita con el marcador
-"CREADA Xmin DESPUÉS del envio del enlace de reagendar".
+"CREADA Xmin DESPUÉS del envio del enlace de reagendar". Solo la presencia física
+del marcador POST-ENLACE en la lista cuenta como prueba real de reagendado.
+Las palabras del lead NUNCA son prueba suficiente — aunque diga "ya reagendé",
+si no hay cita post-enlace, marca la actual como no-show + activa seguimiento.
 
-Solo la presencia física del marcador POST-ENLACE en la lista cuenta como prueba real
-de reagendado. Las palabras del lead NUNCA son prueba suficiente.
+NO APLICA esta regla (ve a EXCEPCIÓN — PREGUNTAS EXPLORATORIAS SIN DESCARTE más abajo) si:
+- El lead solo PREGUNTA o PROPONE un cambio sin descartar el día actual:
+  "podemos cambiar al sábado?", "hay opción el jueves?", "podría ser el lunes?",
+  "tendrías hueco el viernes?", "sería posible pasarla?"
 
-Razón del sistema: si la cita post-enlace no existe físicamente, no sabemos si el lead
-realmente la moverá o se olvidará. Hay que (a) marcar la actual como no-show para que
-el coach no espere al lead, Y (b) activar seguimiento por si el lead olvida reagendar.
+Razón del cambio: si el lead solo está explorando (sin descartar el día actual),
+y cancelamos preventivamente, el lead que luego decide "ah no, mejor déjalo" queda
+con la cita marcada no-show — y NADIE REVISA las canceladas (el closer solo revisa
+las confirmadas). Mejor esperar a que el lead exprese decisión clara (firme,
+descartando día actual, o el día siguiente al recordatorio).
 
-Esto aplica TANTO si el Coach envió enlace previamente como si no. Es la regla más
-importante del clasificador. Solo la cita POST-ENLACE en la lista lo cambia.
+Esto aplica TANTO si el Coach envió enlace previamente como si no. Solo la cita
+POST-ENLACE en la lista lo cambia.
 
 CONTEXTO DEL "COACH":
 Las respuestas del Coach pueden ser de un humano O de una IA automatizada. Cuando la IA detecta
@@ -184,6 +193,57 @@ REGLAS POST-ENLACE (cuando el Coach envió el [ENVIÓ ENLACE DE REAGENDAR]):
   más, silencio total) → no_action (NUNCA asumir aceptación por silencio).
 - Lead YA había cancelado claramente ANTES del link y no respondió al link → cancel_with_followup.
 
+EXCEPCIÓN — PREGUNTAS EXPLORATORIAS SOBRE CAMBIO SIN DESCARTE EXPLÍCITO:
+
+Si el lead PREGUNTA o PROPONE un cambio de fecha/hora pero NO descarta
+explícitamente el día actual, trata como no_action. El lead está
+explorando, no decidiendo. Esta excepción tiene PRIORIDAD sobre la
+REGLA CRÍTICA #1.
+
+REQUIERE AMBAS condiciones:
+(1) El lead pregunta o propone un cambio (puede mencionar día/hora alternativos)
+(2) El lead NO menciona explícitamente que no puede el día actual
+    (no aparecen frases como "no puedo el [día]", "no me va bien", "imposible",
+    "tengo que cancelar", "no llegaré", "no asistiré")
+
+Ejemplos (todos no_action):
+- "Podemos cambiar la llamada al sábado?"
+- "Hay opción del jueves a las 18?"
+- "Tendrías hueco el lunes que viene?"
+- "Sería posible pasarla a otro día?"
+- "Podría ser para el viernes a las 19?"
+- "Y si lo movemos al miércoles?"
+- "Mejor el sábado, no?"
+- "Podemos cambiar la llamada al jueves?" (sin descarte)
+- "Posibilidad para el sábado a la misma hora?"
+
+CONTRASTE — cancel_with_followup (descarte explícito + cambio):
+- "Mañana no puedo, cambiamos día?" (descarte: "no puedo mañana")
+- "Imposible el jueves, qué huecos hay?" (descarte: "imposible")
+- "No me va bien el viernes, podemos cambiar?" (descarte: "no me va bien")
+- "Mañana mo me va bien la llamada, podemos cambiar el día?" (Laura — descarte)
+- "Tengo que cambiar el día sí o sí" (afirmación firme)
+
+CONTRASTE — cancel_with_followup (afirmación firme o orden):
+- "Ya reagendé al sábado" (afirma haberlo hecho)
+- "Lo cambio ahora al jueves" (promete acción inmediata)
+- "Muévelo al lunes" (orden directa)
+- "Cambia para el viernes" (orden directa)
+- "Pasa la cita al miércoles" (orden directa)
+
+CLAVE para diferenciar:
+- Pregunta/propuesta + SIN descarte explícito del día actual → no_action (exploración)
+- Pregunta/propuesta + CON descarte explícito → cancel_with_followup (decisión)
+- Afirmación firme ("ya cambié", "lo cambio ahora") → cancel_with_followup (decisión)
+- Orden directa ("muévelo", "cambia") → cancel_with_followup (decisión)
+
+POR QUÉ esta excepción aplica con prioridad:
+Si cancelamos una pregunta exploratoria y el lead luego se arrepiente
+("ah no, mejor déjalo"), la cita queda marcada no-show y NADIE revisa
+las canceladas (el closer solo revisa las confirmadas). Mejor esperar
+a decisión clara. Si el lead realmente quería cambiar, al día siguiente
+con el recordatorio lo expresará claramente.
+
 EXCEPCIÓN — AJUSTES MENORES DE HORA DEL MISMO DÍA:
 Si el lead solo pide ajustar la HORA de la llamada SIN cambiar el día ("podemos a las 18
 en vez de 16?", "30 min más tarde si te va bien", "puedo a las 20 mejor?", "a otra hora
@@ -194,11 +254,11 @@ la cita en el sistema.
 
 DIFERENCIAR cuidadosamente:
 - "podemos a las 18 hoy en vez de 16?" → no_action (cambio de hora mismo día)
-- "podemos hacerla el jueves?" → cancel_with_followup (cambio de día = reschedule)
+- "podemos hacerla el jueves?" → ver EXCEPCIÓN PREGUNTAS EXPLORATORIAS (sin descarte → no_action)
 - "puedes hoy más tarde?" → no_action (mismo día)
-- "puedo más tarde de esta semana, hoy no" → cancel_with_followup (otro día)
+- "puedo más tarde de esta semana, hoy no" → cancel_with_followup (descarte: "hoy no")
 - "mejor a la noche que a la tarde?" → no_action (mismo día, solo cambia el rato)
-- "mejor en 2 días" → cancel_with_followup (otro día)
+- "mejor en 2 días" → ver EXCEPCIÓN PREGUNTAS EXPLORATORIAS (sin descarte → no_action)
 
 EXCEPCIÓN — RETRASOS NO SON CANCELACIONES:
 Distingue cuidadosamente entre "llegar tarde" (no es cancelación) y "no asistir"
@@ -394,16 +454,6 @@ CONTRASTE — cancel_with_followup (el lead YA descartó el día actual):
 - "Tengo que cambiar el día sí o sí" (decidido)
 - "No me va bien mañana, podemos pasarlo a otro día?" (firme: "no me va bien")
 
-POR QUÉ aplicar esta excepción en vez de la REGLA CRÍTICA #1:
-La defensa "cancelar siempre que se mencione reagenda" existe para
-protegernos cuando el lead AFIRMA haber reagendado sin hacerlo. Aquí
-es DIFERENTE: el lead explícitamente dice que aún no ha decidido y
-ofrece confirmar después. Si cancelamos preventivamente, marcamos
-no-show a un lead que probablemente sí venga, activamos seguimiento
-confuso, y el lead se siente no escuchado. La acción correcta es
-esperar la confirmación. Si finalmente cancela mañana con palabras
-firmes, el clasificador lo cogerá entonces.
-
 CLAVE para diferenciar EXCEPCIÓN vs CONTRASTE:
 - En la EXCEPCIÓN el lead aún no decidió + ofrece confirmar después
 - En el CONTRASTE el lead descarta el día actual con certeza y solo
@@ -461,17 +511,18 @@ INTENTS POSIBLES:
   silencio post-link, lead ya reagendó (con marcador post-enlace), ajuste menor de hora
   del mismo día, aviso de retraso CON cualificador explícito, cancelación condicional
   ("si X entonces cancelo"), problema técnico de conexión CON término tecnológico explícito,
-  o lead incierto que ofrece confirmar más tarde.
-- "cancel_with_followup": el lead pide cancelar TODAS las citas activas (excepto las marcadas
-  POST-ENLACE), o pide reagendar a otro día (incluso si dice que ya lo hizo, mientras no haya
-  cita post-enlace en la lista) y se le debe poner en seguimiento automático. ES EL DEFAULT
-  para cualquier cancelación/reagendado con motivos no agresivos.
+  lead incierto que ofrece confirmar más tarde, o pregunta exploratoria sobre cambio
+  SIN descarte explícito del día actual.
+- "cancel_with_followup": el lead afirma firmemente cancelar/reagendar, da orden directa
+  ("muévelo al X"), o pregunta sobre cambio CON descarte explícito del día actual
+  ("no puedo mañana, cambiamos?"). ES EL DEFAULT para cualquier cancelación/reagendado
+  firme con motivos no agresivos.
 - "cancel_no_followup": SOLO para rechazo total del programa con señales muy explícitas.
   Cancela TODAS las pre-enlace, sin seguimiento. Caso raro.
 - "cancel_partial": cancelar SOLO algunas citas concretas (ver sección CANCEL_PARTIAL arriba).
 
 REGLAS GENERALES:
-- Mejor "no_action" si tienes la más mínima duda sobre si hay cancelación.
+- Mejor "no_action" si tienes la más mínima duda sobre si hay cancelación o reagenda.
 - Si está claro que hay cancelación pero dudas entre with_followup y no_followup → with_followup.
 - "appointment_ids_to_noshow" debe contener ÚNICAMENTE ids de la lista. Si el lead no especifica
   cuál, asume TODAS las citas activas SIN el marcador POST-ENLACE.
@@ -537,12 +588,13 @@ confidence refleja tu certeza sobre el intent que devuelves. Úsalo así:
   Ej: "perfecto, ahí estaré" → no_action, confidence=0.97
 
 - 0.85-0.94: señal clara pero requiere interpretar contexto multi-mensaje
-  Ej: lead pide cambio de día con motivo → cancel_with_followup, confidence=0.90
+  Ej: lead pide cambio de día con motivo explícito → cancel_with_followup, confidence=0.90
   Ej: lead aplica excepción de retraso con cualificador → no_action, confidence=0.88
 
 - 0.80-0.84: aplicas una excepción específica que requiere lectura cuidadosa
   Ej: lead incierto + ofrece confirmar → no_action, confidence=0.82
   Ej: cancelación condicional con off-ramp → no_action, confidence=0.82
+  Ej: pregunta exploratoria sin descarte → no_action, confidence=0.82
 
 - 0.70-0.79: caso límite. ATENCIÓN: el sistema fuerza no_action si confidence
   < 0.80 para intents distintos de no_action. Si dudas a este nivel para una
@@ -661,8 +713,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text, transcriptionStats };
   }
 
-  // Guard against non-canonical intent values. Treat as no_action so we never
-  // execute partial actions (noshow without setting custom fields/tags).
   if (!VALID_INTENTS.has(parsed.intent)) {
     logger.warn('claude returned non-canonical intent → no_action', {
       intent: parsed.intent,
@@ -690,14 +740,9 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   if (rejected.length > 0) logger.warn('claude returned invalid appointment ids', { rejected });
 
   let conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
-  // When set true (after Sonnet overrides Haiku in double-check), Sonnet's
-  // decision is trusted and the confidence threshold bypass is skipped.
   let trustedFromDoubleCheck = false;
 
   // ============== DOUBLE-CHECK with Sonnet ==============
-  // When Haiku returns a cancel intent with low confidence, ask Sonnet to
-  // verify. Sonnet's verdict overrides Haiku's. Acts as a safety net for
-  // ambiguous cases. See header constants for rationale and configuration.
   let doubleCheckMeta = null;
   if (
     DOUBLE_CHECK_ENABLED &&
@@ -714,7 +759,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     const sonnetRes = await callClaude({
       apiKey,
       model: DOUBLE_CHECK_MODEL,
-      // no fallback for double-check itself — if Sonnet fails, keep Haiku
       system: SYSTEM_PROMPT,
       userMessage,
     });
@@ -722,14 +766,12 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     if (sonnetRes.ok) {
       const sonnetParsed = parseClaudeJson(sonnetRes.text);
       if (sonnetParsed && VALID_INTENTS.has(sonnetParsed.intent)) {
-        // Validate Sonnet's IDs against the same active appointments list.
         const sonnetValidation = validateAppointmentIds(
           sonnetParsed.appointment_ids_to_noshow,
           appointments,
         );
         sonnetParsed.appointment_ids_to_noshow = sonnetValidation.accepted;
 
-        // Preserve Haiku's original values BEFORE overwriting parsed with Sonnet.
         const haikuIntent = parsed.intent;
         const haikuConfidence = conf;
         const haikuReasoning = parsed.reasoning || '';
@@ -757,15 +799,9 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           changed,
         };
 
-        // Sonnet wins. Replace parsed wholesale, then prefix the final
-        // reasoning so the GHL response makes it clear double-check intervened.
         parsed = sonnetParsed;
         conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
         parsed.reasoning = `[Double-check Sonnet from ${haikuIntent}@${haikuConfidence.toFixed(2)}] ${sonnetReasoning}`.trim();
-        // Mark as trusted so the confidence threshold bypass below doesn't
-        // demote Sonnet's verdict to no_action. Once Sonnet (the larger
-        // model used specifically for this safety net) has reviewed, its
-        // decision is final regardless of confidence value.
         trustedFromDoubleCheck = true;
       } else {
         logger.warn('double-check sonnet returned invalid/unparseable, keeping haiku', {
@@ -782,10 +818,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   // ============== END DOUBLE-CHECK ==============
 
   const effectiveThreshold = threshold ?? (leadAfterLink ? POST_LINK_AMBIGUOUS_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
-  // Confidence threshold bypass only applies when the decision came directly
-  // from Haiku. If Sonnet's double-check overrode Haiku, we trust Sonnet's
-  // verdict regardless of its confidence value (it was reviewed by the
-  // larger model specifically for ambiguous cases).
   if (parsed.intent !== 'no_action' && conf < effectiveThreshold && !trustedFromDoubleCheck) {
     logger.info('classification below threshold → no_action', { confidence: conf, threshold: effectiveThreshold, leadAfterLink });
     return {
