@@ -14,6 +14,7 @@ const testCasesEdge = require('./testCases-edge');
 const testCasesV2 = require('./testCases-v2');
 const testCasesLite = require('./testCases-lite');
 const testCasesV3 = require('./testCases-v3');
+const testCasesV4 = require('./testCases-v4');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -83,6 +84,7 @@ app.get('/health', (_req, res) => {
     v2SuiteSize: Array.isArray(testCasesV2) ? testCasesV2.length : 0,
     liteSuiteSize: Array.isArray(testCasesLite) ? testCasesLite.length : 0,
     v3SuiteSize: Array.isArray(testCasesV3) ? testCasesV3.length : 0,
+    v4SuiteSize: Array.isArray(testCasesV4) ? testCasesV4.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -138,7 +140,9 @@ function sleep(ms) {
 async function runSuite({ suite, verbose, categoryFilter, limit, delayMs = 0 }) {
   let filtered = suite;
   if (categoryFilter) {
-    filtered = filtered.filter((tc) => String(tc.category || '').startsWith(categoryFilter));
+    // EXACT match (was startsWith — caused V1 to also grab V10/V11/V12 etc.
+    // when categories share a prefix). Batch scripts pass exact names.
+    filtered = filtered.filter((tc) => String(tc.category || '') === categoryFilter);
   }
   if (Number.isFinite(limit) && limit > 0) {
     filtered = filtered.slice(0, limit);
@@ -342,6 +346,22 @@ app.get('/test/run-v3', requireSecretOnly, async (req, res) => {
   const limit = parseInt(req.query.limit, 10);
   const delayMs = parseDelayMs(req, 1200);
   const response = await runSuite({ suite: testCasesV3, verbose, categoryFilter, limit, delayMs });
+  res.json(response);
+});
+
+// V4 suite (T01-T13 — 200 cases). Torture test: contradicciones, sarcasmo,
+// dialectos, typos extremos, cancel enterrado, cambios múltiples, emociones
+// ambiguas, ambigüedades temporales, post-link complejo.
+// Run via run-v4-suite-lotes.sh.
+app.get('/test/run-v4', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const delayMs = parseDelayMs(req, 1200);
+  const response = await runSuite({ suite: testCasesV4, verbose, categoryFilter, limit, delayMs });
   res.json(response);
 });
 
