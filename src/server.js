@@ -13,6 +13,7 @@ const testCasesMultimsg = require('./testCases-multimsg');
 const testCasesEdge = require('./testCases-edge');
 const testCasesV2 = require('./testCases-v2');
 const testCasesLite = require('./testCases-lite');
+const testCasesV3 = require('./testCases-v3');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -81,6 +82,7 @@ app.get('/health', (_req, res) => {
     edgeSuiteSize: Array.isArray(testCasesEdge) ? testCasesEdge.length : 0,
     v2SuiteSize: Array.isArray(testCasesV2) ? testCasesV2.length : 0,
     liteSuiteSize: Array.isArray(testCasesLite) ? testCasesLite.length : 0,
+    v3SuiteSize: Array.isArray(testCasesV3) ? testCasesV3.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -325,6 +327,21 @@ app.get('/test/run-lite', requireSecretOnly, async (req, res) => {
   const limit = parseInt(req.query.limit, 10);
   const delayMs = parseDelayMs(req, 1200);
   const response = await runSuite({ suite: testCasesLite, verbose, categoryFilter, limit, delayMs });
+  res.json(response);
+});
+
+// V3 suite (V1-V12 — 200 cases). Validates new exploratory-question rule
+// + all regressions. Run by category via the run-v3-suite-lotes.sh script
+// to avoid Railway request timeouts.
+app.get('/test/run-v3', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const delayMs = parseDelayMs(req, 1200);
+  const response = await runSuite({ suite: testCasesV3, verbose, categoryFilter, limit, delayMs });
   res.json(response);
 });
 
