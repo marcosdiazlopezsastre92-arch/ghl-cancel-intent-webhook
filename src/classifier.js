@@ -163,24 +163,44 @@ Ejemplos completos del caso (C):
 - "estoy de viaje mañana, hay opción otro día?" → cancel ✓ (descarte implícito)
 - "tengo lío mañana, podemos pasarla?" → cancel ✓ (descarte implícito)
 
-REGLA "PALABRAS NO SON PRUEBA DE REAGENDADO REAL":
-Cuando aplicas esta regla, devuelve cancel_with_followup A MENOS QUE en la lista de
-"LLAMADAS FUTURAS ACTIVAS" veas explícitamente una cita con el marcador
-"CREADA Xmin DESPUÉS del envio del enlace de reagendar". Solo la presencia física
-del marcador POST-ENLACE en la lista cuenta como prueba real de reagendado.
-Las palabras del lead NUNCA son prueba suficiente — aunque diga "ya reagendé",
-si no hay cita post-enlace, marca la actual como no-show + activa seguimiento.
+REGLA "PALABRAS NO SON PRUEBA DE REAGENDADO REAL — POR ESO CANCELAMOS":
+
+Cuando el lead muestra señal (A), (B) o (C) de la REGLA CRÍTICA #1, devuelve
+cancel_with_followup A MENOS QUE en la lista de "LLAMADAS FUTURAS ACTIVAS"
+veas explícitamente una cita con el marcador "CREADA Xmin DESPUÉS del envio
+del enlace de reagendar".
+
+LÓGICA CRÍTICA — NO confundir esta regla con no_action:
+
+Casos típicos y respuesta correcta:
+- Lead dice "ya reagendé" + NO hay marcador post-enlace → cancel_with_followup ✓
+  (probablemente el lead NO lo hizo realmente — hay que marcar no-show y
+  activar seguimiento para que reagende efectivamente)
+- Lead dice "ya reagendé" + SÍ hay marcador post-enlace → la cita post-enlace
+  NO va a appointment_ids_to_noshow; pero las citas VIEJAS sí van a cancel
+- Lead dice "lo cambio ahora" → cancel_with_followup (promete pero no lo ha hecho)
+- Lead dice "muévelo al sábado" → cancel_with_followup (orden directa)
+- Lead dice "no puedo mañana, cambiamos?" → cancel_with_followup (descarte + cambio)
+
+ERROR FRECUENTE A EVITAR: leer "palabras no son prueba" como razón para devolver
+no_action. Es lo CONTRARIO. Las palabras del lead te dicen claramente que NO va
+a la cita actual, así que CANCELA por defensa. Solo el marcador FÍSICO de cita
+post-enlace puede cambiar esa conclusión defensiva.
+
+Las palabras no son prueba de REAGENDADO (cita nueva creada), pero SÍ son prueba
+suficiente de que el lead NO IRÁ al día actual → cancel_with_followup.
 
 NO APLICA esta regla (ve a EXCEPCIÓN — PREGUNTAS EXPLORATORIAS SIN DESCARTE más abajo) si:
 - El lead solo PREGUNTA o PROPONE un cambio sin descartar el día actual:
   "podemos cambiar al sábado?", "hay opción el jueves?", "podría ser el lunes?",
   "tendrías hueco el viernes?", "sería posible pasarla?"
 
-Razón del cambio: si el lead solo está explorando (sin descartar el día actual),
-y cancelamos preventivamente, el lead que luego decide "ah no, mejor déjalo" queda
-con la cita marcada no-show — y NADIE REVISA las canceladas (el closer solo revisa
-las confirmadas). Mejor esperar a que el lead exprese decisión clara (firme,
-descartando día actual, o el día siguiente al recordatorio).
+Razón de la excepción de exploratorias: si el lead solo está explorando (sin
+descartar el día actual), y cancelamos preventivamente, el lead que luego decide
+"ah no, mejor déjalo" queda con la cita marcada no-show — y NADIE REVISA las
+canceladas (el closer solo revisa las confirmadas). Mejor esperar a que el lead
+exprese decisión clara (firme, descartando día actual, o el día siguiente al
+recordatorio).
 
 Esto aplica TANTO si el Coach envió enlace previamente como si no. Solo la cita
 POST-ENLACE en la lista lo cambia.
@@ -238,6 +258,11 @@ VERBOS QUE INDICAN DECISIÓN PROPUESTA (1ª persona plural imperativo suavizado)
   está propuesta pero no confirmada — esperamos confirmación clara del lead).
 - Si HAY descarte → cancel_with_followup (la decisión queda confirmada por descarte).
 
+ATENCIÓN — esta excepción aplica SOLO a preguntas/propuestas. NO aplica a:
+- Afirmaciones firmes ("ya reagendé", "lo cambio ahora") → siempre van a (A)
+- Órdenes directas ("muévelo", "cambia") → siempre van a (B)
+Para esos casos, sigue REGLA CRÍTICA #1.
+
 Ejemplos (todos no_action):
 - "Podemos cambiar la llamada al sábado?" (sin descarte)
 - "Hay opción del jueves a las 18?"
@@ -260,7 +285,7 @@ CONTRASTE — cancel_with_followup (descarte explícito o implícito + cambio):
 - "Tengo que cambiar el día sí o sí" (afirmación firme)
 
 CONTRASTE — cancel_with_followup (afirmación firme o orden):
-- "Ya reagendé al sábado" (afirma haberlo hecho)
+- "Ya reagendé al sábado" (afirma haberlo hecho — ver REGLA PALABRAS NO SON PRUEBA arriba)
 - "Lo cambio ahora al jueves" (promete acción inmediata)
 - "Muévelo al lunes" (orden directa)
 - "Cambia para el viernes" (orden directa)
@@ -557,10 +582,11 @@ INTENTS POSIBLES:
   ("si X entonces cancelo"), problema técnico de conexión CON término tecnológico explícito,
   lead incierto que ofrece confirmar más tarde, o pregunta exploratoria sobre cambio
   SIN descarte explícito ni implícito del día actual.
-- "cancel_with_followup": el lead afirma firmemente cancelar/reagendar, da orden directa
-  ("muévelo al X"), o pregunta sobre cambio CON descarte explícito o implícito del día actual
-  ("no puedo mañana, cambiamos?", "estoy fuera mañana, hay otro día?"). ES EL DEFAULT
-  para cualquier cancelación/reagendado firme con motivos no agresivos.
+- "cancel_with_followup": el lead afirma firmemente cancelar/reagendar (incluido "ya reagendé"
+  sin marcador post-enlace), da orden directa ("muévelo al X"), o pregunta sobre cambio
+  CON descarte explícito o implícito del día actual ("no puedo mañana, cambiamos?",
+  "estoy fuera mañana, hay otro día?"). ES EL DEFAULT para cualquier cancelación/reagendado
+  firme con motivos no agresivos.
 - "cancel_no_followup": SOLO para rechazo total del programa con señales muy explícitas.
   Cancela TODAS las pre-enlace, sin seguimiento. Caso raro.
 - "cancel_partial": cancelar SOLO algunas citas concretas (ver sección CANCEL_PARTIAL arriba).
