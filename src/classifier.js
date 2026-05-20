@@ -726,15 +726,20 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
         );
         sonnetParsed.appointment_ids_to_noshow = sonnetValidation.accepted;
 
+        // Preserve Haiku's original values BEFORE overwriting parsed with Sonnet.
         const haikuIntent = parsed.intent;
         const haikuConfidence = conf;
+        const haikuReasoning = parsed.reasoning || '';
+        const sonnetReasoning = sonnetParsed.reasoning || '';
         const changed = haikuIntent !== sonnetParsed.intent;
 
         logger.info('double-check sonnet result', {
           haiku_intent: haikuIntent,
           haiku_confidence: haikuConfidence,
+          haiku_reasoning: haikuReasoning,
           sonnet_intent: sonnetParsed.intent,
           sonnet_confidence: sonnetParsed.confidence,
+          sonnet_reasoning: sonnetReasoning,
           changed,
         });
 
@@ -742,16 +747,18 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           triggered: true,
           haikuIntent,
           haikuConfidence,
+          haikuReasoning,
           sonnetIntent: sonnetParsed.intent,
           sonnetConfidence: sonnetParsed.confidence,
+          sonnetReasoning,
           changed,
         };
 
-        // Sonnet wins. Replace parsed wholesale, then prefix reasoning for
-        // visibility in logs and GHL responses.
+        // Sonnet wins. Replace parsed wholesale, then prefix the final
+        // reasoning so the GHL response makes it clear double-check intervened.
         parsed = sonnetParsed;
         conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
-        parsed.reasoning = `[Double-check Sonnet from ${haikuIntent}@${haikuConfidence.toFixed(2)}] ${parsed.reasoning || ''}`.trim();
+        parsed.reasoning = `[Double-check Sonnet from ${haikuIntent}@${haikuConfidence.toFixed(2)}] ${sonnetReasoning}`.trim();
       } else {
         logger.warn('double-check sonnet returned invalid/unparseable, keeping haiku', {
           rawText: (sonnetRes.text || '').slice(0, 500),
