@@ -18,6 +18,28 @@ const {
 
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 
+// Double-check configuration. When Haiku returns a cancel intent with
+// confidence below the threshold, we ask Sonnet to verify. Sonnet's
+// verdict overrides Haiku's.
+//
+// Rationale (data from 43-case analysis on 2026-05-20):
+//   - Haiku confidence on cancellations averages 0.964 (min 0.92)
+//   - Confidence <0.90 signals genuinely ambiguous cases
+//   - Expected activation: ~1-2 cases/week in production
+//   - Expected cost: ~$0-2/month (negligible)
+//
+// Configure via env vars to allow runtime tuning without code changes.
+const DOUBLE_CHECK_ENABLED = process.env.DOUBLE_CHECK_ENABLED !== 'false';
+const DOUBLE_CHECK_THRESHOLD = parseFloat(process.env.DOUBLE_CHECK_THRESHOLD || '0.90');
+const DOUBLE_CHECK_MODEL = process.env.DOUBLE_CHECK_MODEL || 'claude-sonnet-4-6';
+// Only these intents trigger double-check. cancel_partial is excluded
+// because the lead's specific id selection is too contextual for Sonnet
+// to safely override.
+const DOUBLE_CHECK_INTENTS = new Set([
+  'cancel_with_followup',
+  'cancel_no_followup',
+]);
+
 // Canonical intent values Claude is allowed to return.
 // Note: 'audio_needs_review' is set by us internally when the audio bypass
 // kicks in, never by Claude.
@@ -633,7 +655,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
     logger.info('classification served by fallback model', { modelUsed: claudeRes.modelUsed });
   }
 
-  const parsed = parseClaudeJson(claudeRes.text);
+  let parsed = parseClaudeJson(claudeRes.text);
   if (!parsed || !parsed.intent) {
     logger.warn('claude unparseable output', { text: (claudeRes.text || '').slice(0, 500) });
     return { ok: false, error: 'claude-parse-failed', rawText: claudeRes.text, transcriptionStats };
@@ -667,7 +689,83 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   parsed.appointment_ids_to_noshow = accepted;
   if (rejected.length > 0) logger.warn('claude returned invalid appointment ids', { rejected });
 
-  const conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+  let conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+
+  // ============== DOUBLE-CHECK with Sonnet ==============
+  // When Haiku returns a cancel intent with low confidence, ask Sonnet to
+  // verify. Sonnet's verdict overrides Haiku's. Acts as a safety net for
+  // ambiguous cases. See header constants for rationale and configuration.
+  let doubleCheckMeta = null;
+  if (
+    DOUBLE_CHECK_ENABLED &&
+    DOUBLE_CHECK_INTENTS.has(parsed.intent) &&
+    conf < DOUBLE_CHECK_THRESHOLD
+  ) {
+    logger.info('triggering double-check with Sonnet', {
+      haiku_intent: parsed.intent,
+      haiku_confidence: conf,
+      threshold: DOUBLE_CHECK_THRESHOLD,
+      doubleCheckModel: DOUBLE_CHECK_MODEL,
+    });
+
+    const sonnetRes = await callClaude({
+      apiKey,
+      model: DOUBLE_CHECK_MODEL,
+      // no fallback for double-check itself — if Sonnet fails, keep Haiku
+      system: SYSTEM_PROMPT,
+      userMessage,
+    });
+
+    if (sonnetRes.ok) {
+      const sonnetParsed = parseClaudeJson(sonnetRes.text);
+      if (sonnetParsed && VALID_INTENTS.has(sonnetParsed.intent)) {
+        // Validate Sonnet's IDs against the same active appointments list.
+        const sonnetValidation = validateAppointmentIds(
+          sonnetParsed.appointment_ids_to_noshow,
+          appointments,
+        );
+        sonnetParsed.appointment_ids_to_noshow = sonnetValidation.accepted;
+
+        const haikuIntent = parsed.intent;
+        const haikuConfidence = conf;
+        const changed = haikuIntent !== sonnetParsed.intent;
+
+        logger.info('double-check sonnet result', {
+          haiku_intent: haikuIntent,
+          haiku_confidence: haikuConfidence,
+          sonnet_intent: sonnetParsed.intent,
+          sonnet_confidence: sonnetParsed.confidence,
+          changed,
+        });
+
+        doubleCheckMeta = {
+          triggered: true,
+          haikuIntent,
+          haikuConfidence,
+          sonnetIntent: sonnetParsed.intent,
+          sonnetConfidence: sonnetParsed.confidence,
+          changed,
+        };
+
+        // Sonnet wins. Replace parsed wholesale, then prefix reasoning for
+        // visibility in logs and GHL responses.
+        parsed = sonnetParsed;
+        conf = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+        parsed.reasoning = `[Double-check Sonnet from ${haikuIntent}@${haikuConfidence.toFixed(2)}] ${parsed.reasoning || ''}`.trim();
+      } else {
+        logger.warn('double-check sonnet returned invalid/unparseable, keeping haiku', {
+          rawText: (sonnetRes.text || '').slice(0, 500),
+        });
+      }
+    } else {
+      logger.warn('double-check sonnet call failed, keeping haiku', {
+        error: sonnetRes.error || sonnetRes.status,
+        body: sonnetRes.body,
+      });
+    }
+  }
+  // ============== END DOUBLE-CHECK ==============
+
   const effectiveThreshold = threshold ?? (leadAfterLink ? POST_LINK_AMBIGUOUS_THRESHOLD : DEFAULT_CONFIDENCE_THRESHOLD);
   if (parsed.intent !== 'no_action' && conf < effectiveThreshold) {
     logger.info('classification below threshold → no_action', { confidence: conf, threshold: effectiveThreshold, leadAfterLink });
@@ -676,7 +774,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Below threshold (${conf} < ${effectiveThreshold}). Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink,
+      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink, doubleCheckMeta,
     };
   }
 
@@ -687,11 +785,11 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
       decision: { intent: 'no_action', confidence: conf, appointment_ids_to_noshow: [],
                   followup_delay_days: null,
                   reasoning: `Claude said ${parsed.intent} but listed no valid IDs. Original: ${parsed.reasoning || ''}` },
-      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink,
+      claudeRaw: parsed, transcriptionStats, rescheduleLinkSent, leadAfterLink, doubleCheckMeta,
     };
   }
 
-  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats, rescheduleLinkSent, leadAfterLink };
+  return { ok: true, decision: parsed, rejectedIds: rejected, transcriptionStats, rescheduleLinkSent, leadAfterLink, doubleCheckMeta };
 }
 
 module.exports = {
