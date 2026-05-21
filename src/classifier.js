@@ -229,7 +229,7 @@ EXCEPCIONES — precedencia (evalúa en este orden, para en la primera que coinc
 
 1. PROBLEMAS TÉCNICOS → no_action
 2. RETRASOS (cualificador "tarde"/minutos/"al inicio") → no_action
-3. LEAD INCIERTO + OFRECE CONFIRMAR (requiere AMBAS) → no_action
+3. LEAD INCIERTO (duda explícita sobre asistir) → no_action
 4. CANCELACIONES CONDICIONALES ("SI X ENTONCES Y") → no_action
 5. AJUSTES DE HORA MISMO DÍA → no_action
 6. PREGUNTAS EXPLORATORIAS SIN DESCARTE → no_action
@@ -278,23 +278,34 @@ ES CANCELACIÓN si NO contiene esos cualificadores:
 "No llego" SIN cualificador SIEMPRE es cancelación. Mezcla retraso +
 cancelación firme → prevalece cancelación.
 
-EXCEPCIÓN — LEAD INCIERTO + OFRECE CONFIRMAR MÁS TARDE (requiere AMBAS):
+EXCEPCIÓN — LEAD INCIERTO:
 
-(1) INCERTIDUMBRE: "puede que no", "igual no llego", "no estoy seguro",
-    "espero estar pero...", "a ver si me da tiempo", "veremos cómo va".
-(2) OFRECIMIENTO de confirmar: "te confirmo mañana", "te aviso por la mañana",
-    "te digo a la tarde".
+Si el lead expresa INCERTIDUMBRE clara sobre si podrá asistir → no_action.
+Incertidumbre NO es decisión: es duda, no descarte. Preserva la cita y
+espera la decisión real.
 
-Reagenda como alternativa con "O" cuenta:
-- "te confirmo mañana O cambiamos la cita"
-- "te aviso si voy, sino reagendamos"
+Señales de incertidumbre:
+- "puede que no" / "igual no llego" / "no estoy seguro"
+- "no sé si podré" / "no sé si voy a poder" / "no creo que pueda"
+- "espero estar pero..." / "a ver si me da tiempo" / "veremos cómo va"
 
-Ejemplos no_action: "Espero estar pero puede que no, te confirmo mañana
-o cambiamos", "Tengo lío con el trabajo, no estoy seguro, te aviso a la tarde".
+Estas señales bastan para no_action AUNQUE el lead no ofrezca confirmar
+explícitamente. Si además ofrece confirmar ("te aviso a la tarde") o da
+alternativa con "O" ("te confirmo mañana O cambiamos"), refuerza no_action.
 
-CONTRASTE (cancel — descarte firme sin oferta de confirmar):
-- "No puedo mañana, cambiamos?"
-- "Mañana imposible, qué huecos tenéis?"
+La incertidumbre puede ir acompañada de motivo personal o familiar
+(problema familiar, lío en el trabajo, estoy malo, etc.). Lo que activa
+la excepción es la INCERTIDUMBRE, no el motivo en sí.
+
+CONTRASTE (cancel — descarte firme SIN incertidumbre):
+- "No puedo mañana, cambiamos?" → firme
+- "Mañana imposible, qué huecos tenéis?" → firme
+- "Tengo que cancelar" → firme
+- "Estoy fuera mañana" → afirmación firme, no duda
+- "Tengo lío mañana, podemos pasarla?" → afirmación + propuesta, no duda
+
+CLAVE: incertidumbre ≠ descarte. Si lead DUDA, no_action. Si lead AFIRMA
+imposibilidad (con o sin motivo), cancel.
 
 EXCEPCIÓN — CANCELACIONES CONDICIONALES:
 
@@ -417,7 +428,7 @@ INTENTS POSIBLES
 - no_action: conversación normal, confirmación de asistencia, ambigüedad,
   silencio post-link, ya reagendó con marcador post-enlace, ajuste hora
   mismo día, retraso con cualificador, condicional, problema técnico, lead
-  incierto que ofrece confirmar, pregunta exploratoria sin descarte, día/momento
+  incierto (duda explícita), pregunta exploratoria sin descarte, día/momento
   descartado que NO coincide con la cita.
 
 - cancel_with_followup: DEFAULT para cancelación/reagendado firme. Lead afirma
