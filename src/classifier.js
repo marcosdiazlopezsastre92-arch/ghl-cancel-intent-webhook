@@ -155,7 +155,13 @@ SOLO si el día/momento descartado coincide con una cita activa → aplica seña
   - "imposible el [día]" / "es imposible"
   - "tengo que cancelar" / "tengo que mover sí o sí"
 
-  DESCARTE IMPLÍCITO (situación que claramente impide ir):
+  DESCARTE IMPLÍCITO (afirmación firme de situación que impide ir):
+
+  CHEQUEO PREVIO — ¿hay incertidumbre? Si el lead dice "no sé si",
+  "igual no", "puede que", "no creo" antes/después de la situación,
+  NO es descarte → va a EXCEPCIÓN LEAD INCIERTO → no_action.
+
+  Solo si la situación va AFIRMADA con seguridad, aplica esta lista:
   - "estoy fuera mañana" / "estoy de viaje"
   - "tengo lío mañana" / "tengo movida ese día"
   - "estoy súper liada/liado mañana" / "estoy a tope mañana"
@@ -165,7 +171,7 @@ SOLO si el día/momento descartado coincide con una cita activa → aplica seña
   - "tengo cita médica/boda/funeral/viaje mañana" / "estoy malo"
   - "me ha salido reunión mañana"
 
-  Descartes implícitos cuentan IGUAL que explícitos.
+  Descartes implícitos AFIRMADOS cuentan IGUAL que explícitos.
 
   Ejemplos cancel: "no puedo mañana, cambiamos día?",
   "estoy de viaje mañana, hay opción otro día?",
