@@ -175,7 +175,7 @@ SOLO si el día/momento descartado coincide con una cita activa → aplica seña
 
   Ejemplos cancel: "no puedo mañana, cambiamos día?",
   "estoy de viaje mañana, hay opción otro día?",
-  "no me va bien mañana, podemos cambiar el día?" (caso Laura).
+  "no me va bien mañana, podemos cambiar el día?"
 
 DESCARTE FIRME + PREGUNTA DE INFO PARALELA (sigue siendo cancel):
 
