@@ -155,53 +155,27 @@ SOLO si el día/momento descartado coincide con una cita activa → aplica seña
   - "imposible el [día]" / "es imposible"
   - "tengo que cancelar" / "tengo que mover sí o sí"
 
-  DESCARTE IMPLÍCITO firmemente AFIRMADO:
+  DESCARTE IMPLÍCITO (afirmación firme de situación que impide ir):
 
-  CHEQUEO PREVIO — si el lead dice "no sé si", "igual no", "puede que",
-  "no creo" antes/después de la situación, NO es descarte → EXCEPCIÓN
-  LEAD INCIERTO → no_action.
+  CHEQUEO PREVIO — ¿hay incertidumbre? Si el lead dice "no sé si",
+  "igual no", "puede que", "no creo" antes/después de la situación,
+  NO es descarte → va a EXCEPCIÓN LEAD INCIERTO → no_action.
 
-  DOS CATEGORÍAS de frases de descarte implícito:
+  Solo si la situación va AFIRMADA con seguridad, aplica esta lista:
+  - "estoy fuera mañana" / "estoy de viaje"
+  - "tengo lío mañana" / "tengo movida ese día"
+  - "estoy súper liada/liado mañana" / "estoy a tope mañana"
+  - "voy mal de tiempo mañana" / "estoy hasta arriba mañana"
+  - "sin energía para nada mañana" / "sin fuerzas mañana"
+  - "me sale algo mañana" / "me ha salido algo mañana"
+  - "tengo cita médica/boda/funeral mañana" / "estoy malo"
+  - "me ha salido reunión mañana"
 
-  (1) COMPROMISO FÍSICO incompatible (cuentan SOLAS como cancel):
-  - "estoy de viaje" / "estoy fuera"
-  - "tengo cita médica/boda/funeral/entierro"
-  - "estoy malo/enfermo/con fiebre" (sin cualificador de hora puntual)
-  - "tengo compromiso/evento familiar"
+  Descartes implícitos AFIRMADOS cuentan IGUAL que explícitos.
 
-  (2) JERGA DE OCUPACIÓN (NO cuentan solas — requieren refuerzo):
-  - "estoy a tope" / "estoy súper liada/liado" / "estoy hasta arriba"
-  - "tengo lío" / "tengo movida"
-  - "voy mal de tiempo" / "sin energía/fuerzas"
-  - "me sale algo" / "me ha salido reunión/algo"
-
-  Para que una frase de (2) cuente como cancel, el mismo mensaje del
-  lead debe contener al menos UNO de estos refuerzos:
-  - Propuesta de cambio: "cambiamos?", "movemos?", "hay opción?",
-    "podemos pasarla?", "para otro día?"
-  - Imposibilidad explícita: "no puedo", "no llego", "imposible",
-    "no me da"
-
-  Si una frase de (2) va sola, o va con confirmación de asistencia
-  en cualquier orden ("ahí estaré", "te veo a las 17", pregunta de
-  detalle práctico como enlace/hora/duración) → no_action.
-
-  IMPORTANTE: cuando una frase de (2) va con refuerzo, cuenta como
-  descarte real → aplica REGLA CRÍTICA #1, NO la excepción
-  PREGUNTAS EXPLORATORIAS SIN DESCARTE.
-
-  Descartes (1) cuentan IGUAL que descartes explícitos.
-
-  Ejemplos cancel:
-  - "no puedo mañana, cambiamos día?"
-  - "estoy de viaje mañana, hay opción otro día?"  (1) sola
-  - "estoy a tope mañana, cambiamos?"  (2) + refuerzo
-  - "tengo lío mañana, no puedo"  (2) + refuerzo
-
-  Ejemplos NO cancel (no_action):
-  - "estoy a tope mañana"  (2) sola
-  - "tengo lío mañana, te aviso si me retraso"  (2) + confirmación
-  - "ahí estaré mañana pero estoy a tope"  (2) + confirmación previa
+  Ejemplos cancel: "no puedo mañana, cambiamos día?",
+  "estoy de viaje mañana, hay opción otro día?",
+  "no me va bien mañana, podemos cambiar el día?"
 
 DESCARTE FIRME + PREGUNTA DE INFO PARALELA (sigue siendo cancel):
 
