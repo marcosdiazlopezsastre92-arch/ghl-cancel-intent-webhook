@@ -85,7 +85,7 @@ function formatAppointmentsForPrompt(appointments, messages) {
     const createdTs = tsOf(a);
     if (createdTs && linkTs && createdTs > linkTs) {
       const minsAfter = Math.round((createdTs - linkTs) / 60000);
-      createdContext = ` | CREADA ${minsAfter}min DESPUÉS del envio del enlace de reagendar (POSIBLEMENTE ES EL RESULTADO DEL REAGENDADO DEL LEAD — NO INCLUIR EN appointment_ids_to_noshow salvo que el lead lo pida explicitamente)`;
+      createdContext = ` | CREADA ${minsAfter}min DESPUÉS del envío del enlace de reagendar (POSIBLEMENTE ES EL RESULTADO DEL REAGENDADO DEL LEAD — NO INCLUIR EN appointment_ids_to_noshow salvo que el lead lo pida explícitamente)`;
     } else if (createdTs) {
       createdContext = ` | creada=${a.dateAdded || a.dateCreated || a.createdAt}`;
     }
@@ -104,7 +104,7 @@ como UNA UNIDAD todos los mensajes consecutivos del mismo hablante hasta que el 
 Interpreta esa unidad como una sola frase conectada por conjunciones implícitas.
 
 Ejemplo: "como máximo 65€" + "si no es posible dímelo" + "y no hace falta la llamada"
-→ Unidad: objeción condicional de presupuesto con off-ramp suavizado → no_action.
+→ Unidad: objeción condicional de presupuesto con manera suave de cancelar → no_action.
 
 ═══════════════════════════════════════════════════════════════════════════════
 REGLA CRÍTICA #1 — CANCELAR REQUIERE DECISIÓN FIRME O DESCARTE EXPLÍCITO
@@ -155,27 +155,53 @@ SOLO si el día/momento descartado coincide con una cita activa → aplica seña
   - "imposible el [día]" / "es imposible"
   - "tengo que cancelar" / "tengo que mover sí o sí"
 
-  DESCARTE IMPLÍCITO (afirmación firme de situación que impide ir):
+  DESCARTE IMPLÍCITO firmemente AFIRMADO:
 
-  CHEQUEO PREVIO — ¿hay incertidumbre? Si el lead dice "no sé si",
-  "igual no", "puede que", "no creo" antes/después de la situación,
-  NO es descarte → va a EXCEPCIÓN LEAD INCIERTO → no_action.
+  CHEQUEO PREVIO — si el lead dice "no sé si", "igual no", "puede que",
+  "no creo" antes/después de la situación, NO es descarte → EXCEPCIÓN
+  LEAD INCIERTO → no_action.
 
-  Solo si la situación va AFIRMADA con seguridad, aplica esta lista:
-  - "estoy fuera mañana" / "estoy de viaje"
-  - "tengo lío mañana" / "tengo movida ese día"
-  - "estoy súper liada/liado mañana" / "estoy a tope mañana"
-  - "voy mal de tiempo mañana" / "estoy hasta arriba mañana"
-  - "sin energía para nada mañana" / "sin fuerzas mañana"
-  - "me sale algo mañana" / "me ha salido algo mañana"
-  - "tengo cita médica/boda/funeral/viaje mañana" / "estoy malo"
-  - "me ha salido reunión mañana"
+  DOS CATEGORÍAS de frases de descarte implícito:
 
-  Descartes implícitos AFIRMADOS cuentan IGUAL que explícitos.
+  (1) COMPROMISO FÍSICO incompatible (cuentan SOLAS como cancel):
+  - "estoy de viaje" / "estoy fuera"
+  - "tengo cita médica/boda/funeral/entierro"
+  - "estoy malo/enfermo/con fiebre" (sin cualificador de hora puntual)
+  - "tengo compromiso/evento familiar"
 
-  Ejemplos cancel: "no puedo mañana, cambiamos día?",
-  "estoy de viaje mañana, hay opción otro día?",
-  "no me va bien mañana, podemos cambiar el día?"
+  (2) JERGA DE OCUPACIÓN (NO cuentan solas — requieren refuerzo):
+  - "estoy a tope" / "estoy súper liada/liado" / "estoy hasta arriba"
+  - "tengo lío" / "tengo movida"
+  - "voy mal de tiempo" / "sin energía/fuerzas"
+  - "me sale algo" / "me ha salido reunión/algo"
+
+  Para que una frase de (2) cuente como cancel, el mismo mensaje del
+  lead debe contener al menos UNO de estos refuerzos:
+  - Propuesta de cambio: "cambiamos?", "movemos?", "hay opción?",
+    "podemos pasarla?", "para otro día?"
+  - Imposibilidad explícita: "no puedo", "no llego", "imposible",
+    "no me da"
+
+  Si una frase de (2) va sola, o va con confirmación de asistencia
+  en cualquier orden ("ahí estaré", "te veo a las 17", pregunta de
+  detalle práctico como enlace/hora/duración) → no_action.
+
+  IMPORTANTE: cuando una frase de (2) va con refuerzo, cuenta como
+  descarte real → aplica REGLA CRÍTICA #1, NO la excepción
+  PREGUNTAS EXPLORATORIAS SIN DESCARTE.
+
+  Descartes (1) cuentan IGUAL que descartes explícitos.
+
+  Ejemplos cancel:
+  - "no puedo mañana, cambiamos día?"
+  - "estoy de viaje mañana, hay opción otro día?"  (1) sola
+  - "estoy a tope mañana, cambiamos?"  (2) + refuerzo
+  - "tengo lío mañana, no puedo"  (2) + refuerzo
+
+  Ejemplos NO cancel (no_action):
+  - "estoy a tope mañana"  (2) sola
+  - "tengo lío mañana, te aviso si me retraso"  (2) + confirmación
+  - "ahí estaré mañana pero estoy a tope"  (2) + confirmación previa
 
 DESCARTE FIRME + PREGUNTA DE INFO PARALELA (sigue siendo cancel):
 
@@ -207,7 +233,7 @@ El Coach puede ser humano o IA. Si ves "Coach [ENVIÓ ENLACE DE REAGENDAR]"
 significa que mandó el enlace para mover la cita.
 
 Una cita en LLAMADAS FUTURAS ACTIVAS puede venir con marcador "CREADA Xmin
-DESPUÉS del envio del enlace de reagendar". Ese marcador es la ÚNICA señal
+DESPUÉS del envío del enlace de reagendar". Ese marcador es la ÚNICA señal
 fiable de que el lead realmente reagendó.
 
 PRINCIPIO DEFENSIVO: las palabras del lead NO son prueba de reagendado real.
@@ -227,7 +253,7 @@ CASOS POST-ENLACE (cuando el Coach envió el enlace):
   → no_action.
 - Lead AMBIGUO o silencioso ("déjame pensarlo", "luego te digo", "vale" sin más)
   → no_action. NUNCA asumir aceptación por silencio.
-- Lead había cancelado claramente ANTES del link y no respondió → cancel_with_followup.
+- Lead había cancelado claramente ANTES del enlace y no respondió → cancel_with_followup.
 
 ═══════════════════════════════════════════════════════════════════════════════
 EXCEPCIONES — precedencia (evalúa en este orden, para en la primera que coincida)
@@ -248,7 +274,7 @@ EXCEPCIÓN — PROBLEMAS TÉCNICOS:
 Aplica si el lead menciona EXPLÍCITAMENTE un término técnico:
 - Software videollamada: Zoom, Meet, Discord, Teams, Skype, FaceTime
 - Hardware: cámara, micrófono, audio, ordenador, móvil, portátil, tablet
-- Acceso: "el link/enlace", "la sala", "el room", "la URL"
+- Acceso: "el link/enlace", "la sala", "la URL"
 - Conexión local: "entrar" (a la sala/llamada), "conectar", "cargar"
 - Red/internet: "wifi", "internet", "conexión", "red", "datos móviles",
   "cobertura", "señal"
@@ -338,7 +364,7 @@ DISTINCIÓN SUAVIZADO vs FIRME:
 "No me va bien [día]" es DESCARTE FIRME del día (NO suavizado). Solo es
 suavizado si va dentro de condicional ("si dura mucho, no me va bien").
 
-EXCEPCIÓN AL EXCEPCIÓN: si tras objeción condicional el lead AÑADE lenguaje
+EXCEPCIÓN A LA EXCEPCIÓN: si tras objeción condicional el lead AÑADE lenguaje
 firme ("es caro. cancela definitivamente") → cancel.
 
 EXCEPCIÓN — AJUSTES DE HORA DEL MISMO DÍA:
@@ -432,7 +458,7 @@ INTENTS POSIBLES
 ═══════════════════════════════════════════════════════════════════════════════
 
 - no_action: conversación normal, confirmación de asistencia, ambigüedad,
-  silencio post-link, ya reagendó con marcador post-enlace, ajuste hora
+  silencio post-enlace, ya reagendó con marcador post-enlace, ajuste hora
   mismo día, retraso con cualificador, condicional, problema técnico, lead
   incierto (duda explícita), pregunta exploratoria sin descarte, día/momento
   descartado que NO coincide con la cita.
