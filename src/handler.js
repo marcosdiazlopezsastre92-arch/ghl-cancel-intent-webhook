@@ -87,24 +87,30 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       },
     };
   }
-  if (locationId && !getLocationConfig(locationId)) {
-    // Defensive check (covered by the above but kept for clarity).
-    return {
-      status: 400,
-      json: { ok: false, error: 'locationId not configured', received: locationId, allowed: ALLOWED_LOCATIONS },
-    };
-  }
   const CUSTOM_FIELDS = locationConfig.customFields;
   const TAGS = locationConfig.tags;
   logger.info('routing to location', { locationId: effectiveLocationId, name: locationConfig.name });
 
+  // Helper: every return after this point includes routing context so callers
+  // can verify which location was used (useful for multi-tenant debugging).
+  const routingMeta = { locationId: effectiveLocationId, locationName: locationConfig.name };
+
   if (!apiKey) {
-    return { status: 500, json: { ok: false, error: 'Missing ANTHROPIC_API_KEY env var on server' } };
+    return { status: 500, json: { ok: false, error: 'Missing ANTHROPIC_API_KEY env var on server', ...routingMeta } };
   }
 
   const convRes = await findConversationForContact({ authorization, locationId: effectiveLocationId, contactId });
   if (!convRes.ok || convRes.conversations.length === 0) {
-    return { status: 200, json: { ok: true, decision: { intent: 'no_action', reasoning: 'No conversation found' }, warnings: ['no-conversation'] } };
+    return {
+      status: 200,
+      json: {
+        ok: true,
+        decision: { intent: 'no_action', reasoning: 'No conversation found' },
+        warnings: ['no-conversation'],
+        dryRun,
+        ...routingMeta,
+      },
+    };
   }
   const convs = [...convRes.conversations].sort((a, b) => {
     const ta = new Date(a.lastMessageDate || a.dateUpdated || 0).getTime();
@@ -115,17 +121,26 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
 
   const msgsRes = await getConversationMessages({ authorization, conversationId: conversation.id, limit: 30 });
   if (!msgsRes.ok) {
-    return { status: 502, json: { ok: false, error: 'Failed to get conversation messages', errors: msgsRes.errors } };
+    return { status: 502, json: { ok: false, error: 'Failed to get conversation messages', errors: msgsRes.errors, ...routingMeta } };
   }
   if (msgsRes.messages.length === 0) {
-    return { status: 200, json: { ok: true, decision: { intent: 'no_action', reasoning: 'No messages in conversation' }, warnings: ['empty-conversation'] } };
+    return {
+      status: 200,
+      json: {
+        ok: true,
+        decision: { intent: 'no_action', reasoning: 'No messages in conversation' },
+        warnings: ['empty-conversation'],
+        dryRun,
+        ...routingMeta,
+      },
+    };
   }
 
   const appRes = await findAllActiveFutureAppointmentsForContact({
     authorization, locationId: effectiveLocationId, contactId,
   });
   if (!appRes.ok) {
-    return { status: 502, json: { ok: false, error: 'Failed to find appointments', errors: appRes.errors } };
+    return { status: 502, json: { ok: false, error: 'Failed to find appointments', errors: appRes.errors, ...routingMeta } };
   }
   const appointments = appRes.appointments || [];
 
@@ -134,7 +149,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     ghlAuthorization: authorization,
   });
   if (!cls.ok) {
-    return { status: 502, json: { ok: false, error: 'classification-failed', detail: cls } };
+    return { status: 502, json: { ok: false, error: 'classification-failed', detail: cls, ...routingMeta } };
   }
   const decision = cls.decision;
   logger.info('classification', {
@@ -195,6 +210,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
         foundActiveAppointments: appointments.length,
         actionsTaken, transcription: cls.transcriptionStats || null, warnings,
         doubleCheckMeta: cls.doubleCheckMeta || null,
+        ...routingMeta,
       },
     };
   }
@@ -208,6 +224,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
         transcription: cls.transcriptionStats || null,
         actionsTaken,
         doubleCheckMeta: cls.doubleCheckMeta || null,
+        ...routingMeta,
       },
     };
   }
@@ -360,8 +377,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       transcription: cls.transcriptionStats || null,
       actionsTaken, warnings, errors, dryRun,
       doubleCheckMeta: cls.doubleCheckMeta || null,
-      locationId: effectiveLocationId,
-      locationName: locationConfig.name,
+      ...routingMeta,
     },
   };
 }
