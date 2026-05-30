@@ -1,11 +1,9 @@
 'use strict';
 
 const {
-  LOCATION_ID,
-  CUSTOM_FIELDS,
-  CANCELLATION_NOTICE_TAG,
-  SCRIPT_APPLIED_TAG,
-  SONNET_REVIEWED_TAG,
+  getLocationConfig,
+  DEFAULT_LOCATION_ID,
+  ALLOWED_LOCATIONS,
 } = require('./config');
 const { parsePayload } = require('./payload');
 const { classify } = require('./classifier');
@@ -34,9 +32,9 @@ function snapDelay(days) {
   return 7;
 }
 
-function mapDelayToOption(days) {
+function mapDelayToOption(days, followupDelayCustomField) {
   const snapped = snapDelay(days);
-  return { snapped, label: CUSTOM_FIELDS.FOLLOWUP_DELAY.options[snapped] || null };
+  return { snapped, label: followupDelayCustomField.options[snapped] || null };
 }
 
 async function setContactCustomFields({ authorization, contactId, fields }) {
@@ -72,14 +70,39 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   logger.info('cancel-intent received', { contactId, locationId, dryRun });
 
   if (!contactId) return { status: 400, json: { ok: false, error: 'Missing contactId in payload' } };
-  if (locationId && locationId !== LOCATION_ID) {
-    return { status: 400, json: { ok: false, error: 'locationId mismatch', expected: LOCATION_ID, received: locationId } };
+
+  // ── Multi-tenant: pick the config for this location ───────────────────
+  // If the payload omits locationId, fall back to DEFAULT_LOCATION_ID (Marcos)
+  // for backwards-compat with existing workflows.
+  const effectiveLocationId = locationId || DEFAULT_LOCATION_ID;
+  const locationConfig = getLocationConfig(effectiveLocationId);
+  if (!locationConfig) {
+    return {
+      status: 400,
+      json: {
+        ok: false,
+        error: 'unknown locationId',
+        received: effectiveLocationId,
+        allowed: ALLOWED_LOCATIONS,
+      },
+    };
   }
+  if (locationId && !getLocationConfig(locationId)) {
+    // Defensive check (covered by the above but kept for clarity).
+    return {
+      status: 400,
+      json: { ok: false, error: 'locationId not configured', received: locationId, allowed: ALLOWED_LOCATIONS },
+    };
+  }
+  const CUSTOM_FIELDS = locationConfig.customFields;
+  const TAGS = locationConfig.tags;
+  logger.info('routing to location', { locationId: effectiveLocationId, name: locationConfig.name });
+
   if (!apiKey) {
     return { status: 500, json: { ok: false, error: 'Missing ANTHROPIC_API_KEY env var on server' } };
   }
 
-  const convRes = await findConversationForContact({ authorization, locationId: LOCATION_ID, contactId });
+  const convRes = await findConversationForContact({ authorization, locationId: effectiveLocationId, contactId });
   if (!convRes.ok || convRes.conversations.length === 0) {
     return { status: 200, json: { ok: true, decision: { intent: 'no_action', reasoning: 'No conversation found' }, warnings: ['no-conversation'] } };
   }
@@ -99,7 +122,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   }
 
   const appRes = await findAllActiveFutureAppointmentsForContact({
-    authorization, locationId: LOCATION_ID, contactId,
+    authorization, locationId: effectiveLocationId, contactId,
   });
   if (!appRes.ok) {
     return { status: 502, json: { ok: false, error: 'Failed to find appointments', errors: appRes.errors } };
@@ -131,7 +154,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
     if (dryRun) {
       actionsTaken.push({
         type: 'add-tag',
-        tag: SONNET_REVIEWED_TAG.name,
+        tag: TAGS.sonnetReviewed.name,
         reason: 'sonnet-double-check',
         dryRun: true,
       });
@@ -139,12 +162,12 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       try {
         const sonnetTagRes = await addContactTags({
           authorization, contactId,
-          tags: [SONNET_REVIEWED_TAG.name],
+          tags: [TAGS.sonnetReviewed.name],
         });
         if (sonnetTagRes.ok) {
           actionsTaken.push({
             type: 'add-tag',
-            tag: SONNET_REVIEWED_TAG.name,
+            tag: TAGS.sonnetReviewed.name,
             reason: 'sonnet-double-check',
             shape: Object.keys(sonnetTagRes.body || {}).join(','),
           });
@@ -223,7 +246,7 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
   const fieldsToSet = [];
   if (decision.intent === 'cancel_with_followup') {
     const requestedDelay = decision.followup_delay_days;
-    const { snapped, label: optionLabel } = mapDelayToOption(requestedDelay);
+    const { snapped, label: optionLabel } = mapDelayToOption(requestedDelay, CUSTOM_FIELDS.FOLLOWUP_DELAY);
     if (requestedDelay !== snapped) {
       logger.warn('followup_delay_days snapped to canonical value', {
         received: requestedDelay, applied: snapped,
@@ -282,16 +305,16 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
 
   // 3) Tags (cancel-related).
   // Two tags with DIFFERENT semantics:
-  //   - CANCELLATION_NOTICE_TAG ("inv x cancelación avisada"): swap-rate
+  //   - cancellationNotice ("inv x cancelación avisada"): swap-rate
   //     metric. Only on FULL cancels (with_followup / no_followup) where
   //     the lead is exiting the entire call sequence with warning. NOT on
   //     partial cancels — those leads still have other active calls and
   //     adding them would skew the show-up rate.
-  //   - SCRIPT_APPLIED_TAG ("script cancel-intent aplicado"): audit filter.
+  //   - scriptApplied ("script cancel-intent aplicado"): audit filter.
   //     Applied on ALL cancel variants (with_followup, no_followup, partial)
   //     so Marcos can review every action the script took in GHL.
   //
-  // Note: SONNET_REVIEWED_TAG is handled separately above (runs regardless
+  // Note: sonnetReviewed is handled separately above (runs regardless
   // of intent, even on no_action when Sonnet overrode Haiku).
   const isFullCancel = (decision.intent === 'cancel_with_followup'
                      || decision.intent === 'cancel_no_followup');
@@ -299,8 +322,8 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
 
   const tagsToAdd = [];
   if (isAnyCancel && targets.length > 0) {
-    tagsToAdd.push(SCRIPT_APPLIED_TAG.name);
-    if (isFullCancel) tagsToAdd.push(CANCELLATION_NOTICE_TAG.name);
+    tagsToAdd.push(TAGS.scriptApplied.name);
+    if (isFullCancel) tagsToAdd.push(TAGS.cancellationNotice.name);
   }
 
   if (tagsToAdd.length > 0) {
@@ -337,6 +360,8 @@ async function handleCancelIntent({ authorization, body, query, apiKey, openaiAp
       transcription: cls.transcriptionStats || null,
       actionsTaken, warnings, errors, dryRun,
       doubleCheckMeta: cls.doubleCheckMeta || null,
+      locationId: effectiveLocationId,
+      locationName: locationConfig.name,
     },
   };
 }
