@@ -72,6 +72,19 @@ function getLocationConfig(locationId) {
 const LOCATION_ID = DEFAULT_LOCATION_ID;
 
 // ════════════════════════════════════════════════════════════════════════
+// LEGACY EXPORTS (backwards-compat for handler.js until it's refactored)
+// ════════════════════════════════════════════════════════════════════════
+//
+// These point to the DEFAULT location (Marcos). Once handler.js is refactored
+// to use getLocationConfig() per request, these can be removed.
+
+const _DEFAULT = LOCATIONS[DEFAULT_LOCATION_ID];
+const CUSTOM_FIELDS = _DEFAULT.customFields;
+const CANCELLATION_NOTICE_TAG = _DEFAULT.tags.cancellationNotice;
+const SCRIPT_APPLIED_TAG = _DEFAULT.tags.scriptApplied;
+const SONNET_REVIEWED_TAG = _DEFAULT.tags.sonnetReviewed;
+
+// ════════════════════════════════════════════════════════════════════════
 // GLOBAL CONSTANTS (not per-location)
 // ════════════════════════════════════════════════════════════════════════
 
@@ -95,13 +108,17 @@ const DEFAULT_CLAUDE_FALLBACK_MODEL = process.env.CLAUDE_FALLBACK_MODEL !== unde
 const DEFAULT_MESSAGES_LOOKBACK = parseInt(process.env.MESSAGES_LOOKBACK || '15', 10);
 
 module.exports = {
-  // Multi-tenant
+  // Multi-tenant (new)
   LOCATIONS,
   DEFAULT_LOCATION_ID,
   ALLOWED_LOCATIONS,
   getLocationConfig,
-  // Backwards-compat
+  // Backwards-compat aliases (deprecated; remove after handler refactor)
   LOCATION_ID,
+  CUSTOM_FIELDS,
+  CANCELLATION_NOTICE_TAG,
+  SCRIPT_APPLIED_TAG,
+  SONNET_REVIEWED_TAG,
   // Global
   GHL_API_BASE, GHL_API_VERSIONS, FUTURE_WINDOW_DAYS,
   CANCELLED_STATUSES,
