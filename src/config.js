@@ -19,6 +19,9 @@
 // Authorization header of the webhook itself (configured in the GHL
 // workflow). The server reads it from the header. As a fallback, the
 // GHL_API_TOKEN env var is used (configured for Marcos's PIT historically).
+// Non-Marcos subaccounts MUST send their PIT in the Authorization header
+// (otherwise the env var fallback would use Marcos's PIT against the wrong
+// location → API errors).
 
 const LOCATIONS = {
   // ─── MARCOS DAZ FITNESS ──────────────────────────────────────────────
@@ -42,12 +45,30 @@ const LOCATIONS = {
     },
   },
 
+  // ─── ROUSONFIT (novia) ────────────────────────────────────────────────
+  'ftn2B2DiIEvKdrvCKru6': {
+    name: 'RousOnFit',
+    customFields: {
+      ALREADY_DONE: { id: 'h3gcUTtyo8L7xQDAjymt', options: { yes: 'Ya lo hice!' } },
+      FOLLOWUP_DELAY: {
+        id: 'eJip4uxTbmEZXjhKCBVh',
+        options: { 1: 'Mañana', 3: 'En 3 días', 7: 'En 7 días' },
+      },
+      REMOVE_FROM_AUTO: {
+        id: 'dCKHLhUQBSacxhS293y8',
+        options: { yes: 'Sacar de recordatorios automáticos!' },
+      },
+    },
+    tags: {
+      // Tag ids are informational only — handler uses .name. GHL auto-creates
+      // tags by name on first use in this subaccount.
+      cancellationNotice: { id: null, name: 'inv x cancelación avisada' },
+      scriptApplied: { id: null, name: 'script cancel-intent aplicado' },
+      sonnetReviewed: { id: null, name: 'intent revisado por sonnet' },
+    },
+  },
+
   // ─── Add new subaccounts here ───────────────────────────────────────
-  // '<NEW_LOCATION_ID>': {
-  //   name: '...',
-  //   customFields: { ALREADY_DONE: {...}, FOLLOWUP_DELAY: {...}, REMOVE_FROM_AUTO: {...} },
-  //   tags: { cancellationNotice: {...}, scriptApplied: {...}, sonnetReviewed: {...} },
-  // },
 };
 
 // Default location for backwards-compat. If the payload omits locationId,
