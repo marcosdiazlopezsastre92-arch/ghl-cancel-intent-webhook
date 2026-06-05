@@ -107,157 +107,21 @@ Ejemplo: "como máximo 65€" + "si no es posible dímelo" + "y no hace falta la
 → Unidad: objeción condicional de presupuesto con manera suave de cancelar → no_action.
 
 ═══════════════════════════════════════════════════════════════════════════════
-REGLA CRÍTICA #1 — CANCELAR REQUIERE DECISIÓN FIRME O DESCARTE EXPLÍCITO
-═══════════════════════════════════════════════════════════════════════════════
-
-CHEQUEO TEMPORAL OBLIGATORIO ANTES DE CANCELAR:
-
-El día/momento que el lead descarta DEBE SOLAPAR con el día/hora de alguna
-cita en LLAMADAS FUTURAS ACTIVAS. Si NO solapa, el lead habla de OTRO día → no_action.
-
-- "hoy no puedo" + cita es MAÑANA → no_action
-- "mañana por la mañana" + cita es MAÑANA POR LA TARDE → no_action
-- "el viernes que viene" + cita es ESTE viernes → no_action
-- "el otro lunes" + cita es ESTE lunes → no_action
-- "el mes que viene" + cita en pocos días → no_action
-
-Si el lead menciona un día SIN especificar "este/el próximo/el otro" y solo hay
-UNA cita activa cercana, asume que se refiere a esa cita.
-
-SOLO si el día/momento descartado coincide con una cita activa → aplica señales:
-
-(A) AFIRMACIÓN FIRME — lead declara que lo hace/lo hizo:
-- "ya cambié" / "ya reagendé" / "perfecto reagendo" / "miro y reagendo"
-- "lo cambio ahora" / "lo estoy moviendo"
-
-  Verbos en 1ª persona presente indicativo ("reagendo", "cambio", "muevo",
-  "lo paso", "lo dejo para [día]") son AFIRMACIÓN aunque no lleven "ya"
-  ni "ahora". NO confundir con condicional ("si reagendo te aviso",
-  "voy a ver si lo cambio") → eso es LEAD INCIERTO.
-
-(B) ORDEN DIRECTA / IMPERATIVA:
-- "muévelo al sábado" / "cambia la llamada al jueves"
-- "pasa la cita al lunes" / "ponla el viernes mejor"
-
-  CADENA de órdenes/propuestas a días DISTINTOS al actual (aunque el lead
-  dude entre ellos) → cancel. Lo que importa: NO quiere ir el día actual.
-  - "cambia al jueves / no mejor sábado / mejor el viernes" → cancel
-  - "muévela al lunes / ah no al martes / mejor miércoles" → cancel
-
-  REVERSIÓN explícita al final ("ya da igual", "déjalo así", "déjalo en pie")
-  → no_action. La cadena se anula.
-
-(C) PREGUNTA O PROPUESTA + DESCARTE del día actual (explícito o implícito):
-
-  DESCARTE EXPLÍCITO:
-  - "no puedo el [día]" / "no podré asistir"
-  - "no me va bien el [día]" / "no me viene bien"
-  - "imposible el [día]" / "es imposible"
-  - "tengo que cancelar" / "tengo que mover sí o sí"
-
-  DESCARTE IMPLÍCITO firmemente AFIRMADO:
-
-  CHEQUEO PREVIO — si el lead dice "no sé si", "igual no", "puede que",
-  "no creo" antes/después de la situación, NO es descarte → EXCEPCIÓN
-  LEAD INCIERTO → no_action.
-
-  DOS CATEGORÍAS de frases de descarte implícito:
-
-  (1) COMPROMISO FÍSICO incompatible (cuentan SOLAS como cancel):
-  - "estoy de viaje" / "estoy fuera"
-  - "tengo cita médica/boda/funeral/entierro"
-  - "estoy malo/enfermo/con fiebre" (sin cualificador de hora puntual)
-  - "tengo compromiso/evento familiar"
-
-  (2) JERGA DE OCUPACIÓN (NO cuentan solas — requieren refuerzo):
-  - "estoy a tope" / "estoy súper liada/liado" / "estoy hasta arriba"
-  - "tengo lío" / "tengo movida"
-  - "voy mal de tiempo" / "sin energía/fuerzas"
-  - "me sale algo" / "me ha salido reunión/algo"
-
-  Para que una frase de (2) cuente como cancel, el mismo mensaje del
-  lead debe contener al menos UNO de estos refuerzos:
-  - Propuesta de cambio: "cambiamos?", "movemos?", "hay opción?",
-    "podemos pasarla?", "para otro día?"
-  - Imposibilidad explícita: "no puedo", "no llego", "imposible",
-    "no me da"
-
-  Si una frase de (2) va sola, o va con confirmación de asistencia
-  en cualquier orden ("ahí estaré", "te veo a las 17", pregunta de
-  detalle práctico como enlace/hora/duración) → no_action.
-
-  IMPORTANTE: cuando una frase de (2) va con refuerzo, cuenta como
-  descarte real → aplica REGLA CRÍTICA #1, NO la excepción
-  PREGUNTAS EXPLORATORIAS SIN DESCARTE.
-
-  Descartes (1) cuentan IGUAL que descartes explícitos.
-
-  Ejemplos cancel:
-  - "no puedo mañana, cambiamos día?"
-  - "estoy de viaje mañana, hay opción otro día?"  (1) sola
-  - "estoy a tope mañana, cambiamos?"  (2) + refuerzo
-  - "tengo lío mañana, no puedo"  (2) + refuerzo
-
-  Ejemplos NO cancel (no_action):
-  - "estoy a tope mañana"  (2) sola
-  - "tengo lío mañana, te aviso si me retraso"  (2) + confirmación
-  - "ahí estaré mañana pero estoy a tope"  (2) + confirmación previa
-
-DESCARTE FIRME + PREGUNTA DE INFO PARALELA (sigue siendo cancel):
-
-Si el descarte es firme + el lead añade pregunta independiente sobre el servicio
-("dime precios", "cuál es vuestra metodología", "mándame info"), la pregunta NO
-anula el descarte → cancel_with_followup. La pregunta es interés paralelo: el
-coach responderá la info y el lead reagenda cuando le venga bien.
-
-- "no puedo mañana, pero mándame info" → cancel ✓
-- "paso de la llamada de mañana. cuál es vuestra metodología?" → cancel ✓
-- "mañana no puedo, pero antes dime si trabajáis con mujeres" → cancel ✓
-
-DIFERENCIA con CONDICIONAL: en condicional la no-asistencia DEPENDE de la
-respuesta del coach ("si no trabajáis con veganos cancela"). En descarte+pregunta
-la no-asistencia ya está decidida.
-
-CHEQUEO OBLIGATORIO ANTES DE ELEGIR cancel_with_followup — ¿ES cancel_partial?
-
-Si hay 2+ citas activas Y el lead pide mantener algunas explícitamente
-("las próximas mantenlas", "las otras déjalas", "la del [día] sí",
-"déjame solo la siguiente") → intent = cancel_partial, NO cancel_with_followup.
-Ver sección CANCEL_PARTIAL más abajo.
-
-═══════════════════════════════════════════════════════════════════════════════
-CITAS POST-ENLACE — qué significa el marcador y cómo actuar
-═══════════════════════════════════════════════════════════════════════════════
-
-El Coach puede ser humano o IA. Si ves "Coach [ENVIÓ ENLACE DE REAGENDAR]"
-significa que mandó el enlace para mover la cita.
-
-Una cita en LLAMADAS FUTURAS ACTIVAS puede venir con marcador "CREADA Xmin
-DESPUÉS del envío del enlace de reagendar". Ese marcador es la ÚNICA señal
-fiable de que el lead realmente reagendó.
-
-PRINCIPIO DEFENSIVO: las palabras del lead NO son prueba de reagendado real.
-Cuando hay descarte verbal/orden/afirmación, cancela por defensa POR DEFECTO.
-Solo el marcador FÍSICO de cita post-enlace cambia el comportamiento sobre la
-cita NUEVA (no se marca como noshow). Las citas VIEJAS siempre se cancelan.
-
-CASO CRÍTICO: "ya reagendé" SIN marcador post-enlace en la lista → cancel_with_followup
-(lead probablemente NO reagendó realmente; cancelar por defensa).
-"ya reagendé" CON marcador post-enlace → cancel_with_followup también, pero la
-cita post-enlace NO va a appointment_ids_to_noshow; solo las VIEJAS.
-
-CASOS POST-ENLACE (cuando el Coach envió el enlace):
-- Lead acepta CLARAMENTE ("vale gracias", "perfecto, lo cambio", "miro y reagendo",
-  "lo hago ahora") → cancel_with_followup.
-- Lead RECHAZA o reafirma asistencia ("no, mejor lo dejo", "al final sí puedo")
-  → no_action.
-- Lead AMBIGUO o silencioso ("déjame pensarlo", "luego te digo", "vale" sin más)
-  → no_action. NUNCA asumir aceptación por silencio.
-- Lead había cancelado claramente ANTES del enlace y no respondió → cancel_with_followup.
-
-═══════════════════════════════════════════════════════════════════════════════
 EXCEPCIONES — precedencia (evalúa en este orden, para en la primera que coincida)
 ═══════════════════════════════════════════════════════════════════════════════
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  ORDEN DE EVALUACIÓN OBLIGATORIO                                  ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+Empieza SIEMPRE por estas excepciones (puntos 1-7). SOLO si NINGUNA
+aplica, baja a REGLA CRÍTICA #1 (punto 8, descrita más abajo en este
+prompt).
+
+CLAVE: una EXCEPCIÓN que aplique BLOQUEA cualquier evaluación de cancel,
+aunque las frases del lead parezcan encajar en REGLA CRÍTICA #1. Ejemplo:
+"no puedo, no tengo wifi" parece cancel ("no puedo") pero TÉCNICO GANA
+porque la EXCEPCIÓN 1 aplica primero.
 
 1. PROBLEMAS TÉCNICOS → no_action
 2. RETRASOS (cualificador "tarde"/minutos/"al inicio") → no_action
@@ -423,6 +287,158 @@ EXCEPCIÓN — CASO ESPECIAL: LEAD MENCIONA TENER ENTRENADOR:
 
 CLAVE: condicional "si" → soft. Decisión cerrada sin condicional → firme.
 Duda → soft → no_action.
+
+═══════════════════════════════════════════════════════════════════════════════
+CITAS POST-ENLACE — qué significa el marcador y cómo actuar
+═══════════════════════════════════════════════════════════════════════════════
+
+El Coach puede ser humano o IA. Si ves "Coach [ENVIÓ ENLACE DE REAGENDAR]"
+significa que mandó el enlace para mover la cita.
+
+Una cita en LLAMADAS FUTURAS ACTIVAS puede venir con marcador "CREADA Xmin
+DESPUÉS del envío del enlace de reagendar". Ese marcador es la ÚNICA señal
+fiable de que el lead realmente reagendó.
+
+PRINCIPIO DEFENSIVO: las palabras del lead NO son prueba de reagendado real.
+Cuando hay descarte verbal/orden/afirmación, cancela por defensa POR DEFECTO.
+Solo el marcador FÍSICO de cita post-enlace cambia el comportamiento sobre la
+cita NUEVA (no se marca como noshow). Las citas VIEJAS siempre se cancelan.
+
+CASO CRÍTICO: "ya reagendé" SIN marcador post-enlace en la lista → cancel_with_followup
+(lead probablemente NO reagendó realmente; cancelar por defensa).
+"ya reagendé" CON marcador post-enlace → cancel_with_followup también, pero la
+cita post-enlace NO va a appointment_ids_to_noshow; solo las VIEJAS.
+
+CASOS POST-ENLACE (cuando el Coach envió el enlace):
+- Lead acepta CLARAMENTE ("vale gracias", "perfecto, lo cambio", "miro y reagendo",
+  "lo hago ahora") → cancel_with_followup.
+- Lead RECHAZA o reafirma asistencia ("no, mejor lo dejo", "al final sí puedo")
+  → no_action.
+- Lead AMBIGUO o silencioso ("déjame pensarlo", "luego te digo", "vale" sin más)
+  → no_action. NUNCA asumir aceptación por silencio.
+- Lead había cancelado claramente ANTES del enlace y no respondió → cancel_with_followup.
+
+═══════════════════════════════════════════════════════════════════════════════
+REGLA CRÍTICA #1 — CANCELAR REQUIERE DECISIÓN FIRME O DESCARTE EXPLÍCITO
+═══════════════════════════════════════════════════════════════════════════════
+
+(Esta es el punto 8 de la precedencia. Solo llegas aquí si NINGUNA de las
+EXCEPCIONES 1-7 aplica.)
+
+CHEQUEO TEMPORAL OBLIGATORIO ANTES DE CANCELAR:
+
+El día/momento que el lead descarta DEBE SOLAPAR con el día/hora de alguna
+cita en LLAMADAS FUTURAS ACTIVAS. Si NO solapa, el lead habla de OTRO día → no_action.
+
+- "hoy no puedo" + cita es MAÑANA → no_action
+- "mañana por la mañana" + cita es MAÑANA POR LA TARDE → no_action
+- "el viernes que viene" + cita es ESTE viernes → no_action
+- "el otro lunes" + cita es ESTE lunes → no_action
+- "el mes que viene" + cita en pocos días → no_action
+
+Si el lead menciona un día SIN especificar "este/el próximo/el otro" y solo hay
+UNA cita activa cercana, asume que se refiere a esa cita.
+
+SOLO si el día/momento descartado coincide con una cita activa → aplica señales:
+
+(A) AFIRMACIÓN FIRME — lead declara que lo hace/lo hizo:
+- "ya cambié" / "ya reagendé" / "perfecto reagendo" / "miro y reagendo"
+- "lo cambio ahora" / "lo estoy moviendo"
+
+  Verbos en 1ª persona presente indicativo ("reagendo", "cambio", "muevo",
+  "lo paso", "lo dejo para [día]") son AFIRMACIÓN aunque no lleven "ya"
+  ni "ahora". NO confundir con condicional ("si reagendo te aviso",
+  "voy a ver si lo cambio") → eso es LEAD INCIERTO.
+
+(B) ORDEN DIRECTA / IMPERATIVA:
+- "muévelo al sábado" / "cambia la llamada al jueves"
+- "pasa la cita al lunes" / "ponla el viernes mejor"
+
+  CADENA de órdenes/propuestas a días DISTINTOS al actual (aunque el lead
+  dude entre ellos) → cancel. Lo que importa: NO quiere ir el día actual.
+  - "cambia al jueves / no mejor sábado / mejor el viernes" → cancel
+  - "muévela al lunes / ah no al martes / mejor miércoles" → cancel
+
+  REVERSIÓN explícita al final ("ya da igual", "déjalo así", "déjalo en pie")
+  → no_action. La cadena se anula.
+
+(C) PREGUNTA O PROPUESTA + DESCARTE del día actual (explícito o implícito):
+
+  DESCARTE EXPLÍCITO:
+  - "no puedo el [día]" / "no podré asistir"
+  - "no me va bien el [día]" / "no me viene bien"
+  - "imposible el [día]" / "es imposible"
+  - "tengo que cancelar" / "tengo que mover sí o sí"
+
+  DESCARTE IMPLÍCITO firmemente AFIRMADO:
+
+  CHEQUEO PREVIO — si el lead dice "no sé si", "igual no", "puede que",
+  "no creo" antes/después de la situación, NO es descarte → EXCEPCIÓN
+  LEAD INCIERTO → no_action.
+
+  DOS CATEGORÍAS de frases de descarte implícito:
+
+  (1) COMPROMISO FÍSICO incompatible (cuentan SOLAS como cancel):
+  - "estoy de viaje" / "estoy fuera"
+  - "tengo cita médica/boda/funeral/entierro"
+  - "estoy malo/enfermo/con fiebre" (sin cualificador de hora puntual)
+  - "tengo compromiso/evento familiar"
+
+  (2) JERGA DE OCUPACIÓN (NO cuentan solas — requieren refuerzo):
+  - "estoy a tope" / "estoy súper liada/liado" / "estoy hasta arriba"
+  - "tengo lío" / "tengo movida"
+  - "voy mal de tiempo" / "sin energía/fuerzas"
+  - "me sale algo" / "me ha salido reunión/algo"
+
+  Para que una frase de (2) cuente como cancel, el mismo mensaje del
+  lead debe contener al menos UNO de estos refuerzos:
+  - Propuesta de cambio: "cambiamos?", "movemos?", "hay opción?",
+    "podemos pasarla?", "para otro día?"
+  - Imposibilidad explícita: "no puedo", "no llego", "imposible",
+    "no me da"
+
+  Si una frase de (2) va sola, o va con confirmación de asistencia
+  en cualquier orden ("ahí estaré", "te veo a las 17", pregunta de
+  detalle práctico como enlace/hora/duración) → no_action.
+
+  IMPORTANTE: cuando una frase de (2) va con refuerzo, cuenta como
+  descarte real → aplica REGLA CRÍTICA #1, NO la excepción
+  PREGUNTAS EXPLORATORIAS SIN DESCARTE.
+
+  Descartes (1) cuentan IGUAL que descartes explícitos.
+
+  Ejemplos cancel:
+  - "no puedo mañana, cambiamos día?"
+  - "estoy de viaje mañana, hay opción otro día?"  (1) sola
+  - "estoy a tope mañana, cambiamos?"  (2) + refuerzo
+  - "tengo lío mañana, no puedo"  (2) + refuerzo
+
+  Ejemplos NO cancel (no_action):
+  - "estoy a tope mañana"  (2) sola
+  - "tengo lío mañana, te aviso si me retraso"  (2) + confirmación
+  - "ahí estaré mañana pero estoy a tope"  (2) + confirmación previa
+
+DESCARTE FIRME + PREGUNTA DE INFO PARALELA (sigue siendo cancel):
+
+Si el descarte es firme + el lead añade pregunta independiente sobre el servicio
+("dime precios", "cuál es vuestra metodología", "mándame info"), la pregunta NO
+anula el descarte → cancel_with_followup. La pregunta es interés paralelo: el
+coach responderá la info y el lead reagenda cuando le venga bien.
+
+- "no puedo mañana, pero mándame info" → cancel ✓
+- "paso de la llamada de mañana. cuál es vuestra metodología?" → cancel ✓
+- "mañana no puedo, pero antes dime si trabajáis con mujeres" → cancel ✓
+
+DIFERENCIA con CONDICIONAL: en condicional la no-asistencia DEPENDE de la
+respuesta del coach ("si no trabajáis con veganos cancela"). En descarte+pregunta
+la no-asistencia ya está decidida.
+
+CHEQUEO OBLIGATORIO ANTES DE ELEGIR cancel_with_followup — ¿ES cancel_partial?
+
+Si hay 2+ citas activas Y el lead pide mantener algunas explícitamente
+("las próximas mantenlas", "las otras déjalas", "la del [día] sí",
+"déjame solo la siguiente") → intent = cancel_partial, NO cancel_with_followup.
+Ver sección CANCEL_PARTIAL más abajo.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CANCEL_PARTIAL — CUÁNDO USAR
