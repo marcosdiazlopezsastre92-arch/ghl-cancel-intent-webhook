@@ -498,11 +498,29 @@ POLÍTICA followup_delay_days
 ═══════════════════════════════════════════════════════════════════════════════
 
 Valores válidos: 1, 3, 7, o null.
-Distribución esperada: ~55% son 1, ~30% son 3, ~15% son 7.
+Distribución esperada: ~50% son 1, ~35% son 3, ~15% son 7.
 
-Ajusta el delay al TIPO DE MOTIVO del lead. La idea: el seguimiento llega
-cuando el motivo del lead ya se ha resuelto. Demasiado pronto = lead aún
-ocupado y se frustra. Demasiado tarde = pierdes momentum.
+─── PRINCIPIO GENERAL ───
+
+El seguimiento debe llegar cuando el lead YA está disponible de nuevo.
+Demasiado pronto = lead aún ocupado, se frustra y bloquea.
+Demasiado tarde = pierdes momentum y se enfría.
+
+Estima la DURACIÓN APROXIMADA del motivo del lead y mapea:
+- ~1 día (motivo se resuelve hoy o mañana)     → 1
+- ~2-4 días (corto plazo, varios días)         → 3
+- ≥5 días (semana o más)                       → 7
+
+Para estimar la duración usa, en este orden:
+  1. Patrones literales tipificados (lista abajo) si encajan claramente.
+  2. INFERENCIA con SENTIDO COMÚN cuando el motivo no encaja en patrones
+     literales (ver guía abajo). NO te obligues a usar solo los patrones —
+     piensa cuánto suele durar lo que el lead describe.
+  3. Si NO hay info de duración alguna ("no puedo mañana", "cancela") → 1.
+
+═══════════════════════════════════════════════════════════════════
+PATRONES TIPIFICADOS (referencia rápida cuando coincidan literal)
+═══════════════════════════════════════════════════════════════════
 
 ─── 1 DÍA — motivo puntual del momento o del día ───
 
@@ -516,8 +534,6 @@ ocupado y se frustra. Demasiado tarde = pierdes momentum.
   "tengo cita médica", "evento del colegio", "comunión", "cumpleaños"
 - Cancel sin motivo declarado: "no puedo mañana", "cancela", "lo dejamos"
 
-EN DUDA dentro de estos patrones → 1.
-
 ─── 3 DÍAS — motivo de corto plazo (2-4 días) ───
 
 - Viaje SIN duración: "estoy de viaje", "estoy fuera", "me voy de viaje",
@@ -529,7 +545,6 @@ EN DUDA dentro de estos patrones → 1.
 - "Estoy de baja", "estoy con el médico unos días"
 - Salud con duración corta especificada: "llevo 2 días con gripe",
   "el médico me ha dado 3 días", "estoy malo hace varios días"
-- Lío de varios días: "esta semana imposible los primeros días"
 
 ─── 7 DÍAS — una semana o más ───
 
@@ -542,7 +557,47 @@ EN DUDA dentro de estos patrones → 1.
 - "Vuelvo el [día que cae 7+ días en el futuro]"
 - "La semana que viene también complicado"
 
-─── DEFAULT EN CASO REALMENTE AMBIGUO sin señal clara ─── → 1 día.
+═══════════════════════════════════════════════════════════════════
+INFERENCIA INTELIGENTE — cuando no encaja en patrones literales
+═══════════════════════════════════════════════════════════════════
+
+Si el lead da un motivo que no aparece arriba, piensa con sentido común
+cuánto suele durar y elige delay. Ejemplos:
+
+- "tengo a mi madre/padre/familia en el hospital" → ingreso suele ser
+  varios días → 3 (o 7 si menciona algo grave como UCI / operación
+  fuerte / "puede tardar")
+- "se me han juntado exámenes" / "estoy de oposición" / "tengo finales"
+  → períodos de estudio duran ~1-2 semanas → 7
+- "estoy con un proyecto/entrega/deadline" → 3 si suena puntual, 7 si dice
+  "todo este mes" o "las próximas semanas"
+- "tengo torneo/competición/partido este finde" → fin de semana → 7
+  (mejor esperar a que termine el evento entero)
+- "estoy en un curso intensivo/congreso/formación" → suele durar varios
+  días → 3 si dura un par de días, 7 si suena a semana entera
+- "se me ha muerto un familiar" / duelo cercano → 7 (respeta espacio)
+- "estoy con la mudanza/reformas/obra" → suele durar varios días → 3
+  (7 si dice "estamos toda la semana")
+- "tengo crisis con [pareja/familia/trabajo]" → emocional, suele
+  resolverse en pocos días → 3
+- "estoy fatal, no puedo con nada" → emocional vago → 1 (suele pasar
+  rápido o el lead vuelve por sí mismo)
+- "estoy de baja médica" / "el médico me ha mandado reposo" sin duración
+  → asume mínimo varios días → 3 (o 7 si dice "no sé cuándo volveré")
+- "tengo que viajar por trabajo" → similar a viaje → 3
+- "estoy en el extranjero" → suele ser viaje largo → 7
+- "me ha salido un curro/trabajo extra" → varios días típico → 3
+
+CLAVE: cuando dudes entre dos delays adyacentes, elige el MÁS LARGO si
+el motivo suena serio (familiar, médico, viaje) y el MÁS CORTO si
+suena ligero (lío puntual, ocupación pasajera).
+
+─── DEFAULT EN CASOS REALMENTE AMBIGUOS ───
+
+- Lead da motivo pero la duración no se puede inferir ni con sentido
+  común → 3 (más prudente que 1 — preferimos esperar un día más a
+  que el lead se sienta acosado).
+- Lead NO da motivo alguno ("no puedo mañana", "cancela") → 1.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CRITERIOS PARA confidence
