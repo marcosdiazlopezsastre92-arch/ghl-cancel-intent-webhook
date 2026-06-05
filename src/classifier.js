@@ -19,7 +19,11 @@ const {
 const POST_LINK_AMBIGUOUS_THRESHOLD = 0.85;
 
 const DOUBLE_CHECK_ENABLED = process.env.DOUBLE_CHECK_ENABLED !== 'false';
-const DOUBLE_CHECK_THRESHOLD = parseFloat(process.env.DOUBLE_CHECK_THRESHOLD || '0.90');
+// Threshold de confianza por debajo del cual cancel_with_followup / cancel_no_followup
+// dispara el double-check con Sonnet. Default 0.95 = mismo valor que producción
+// (Railway env DOUBLE_CHECK_THRESHOLD). Si la env var no existe por error, el
+// sistema sigue funcionando con el threshold real esperado.
+const DOUBLE_CHECK_THRESHOLD = parseFloat(process.env.DOUBLE_CHECK_THRESHOLD || '0.95');
 const DOUBLE_CHECK_MODEL = process.env.DOUBLE_CHECK_MODEL || 'claude-sonnet-4-6';
 const DOUBLE_CHECK_INTENTS = new Set([
   'cancel_with_followup',
