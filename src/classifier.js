@@ -497,20 +497,52 @@ REGLAS GENERALES:
 POLÍTICA followup_delay_days
 ═══════════════════════════════════════════════════════════════════════════════
 
-Valores válidos: 1, 3, 7, o null. DEFAULT FUERTE = 1 día.
-Distribución esperada: ~95% son 1, ~4% son 3, ~1% es 7.
+Valores válidos: 1, 3, 7, o null.
+Distribución esperada: ~55% son 1, ~30% son 3, ~15% son 7.
 
-- 1 día: cancelación sin motivo o motivo puntual (resaca, lío trabajo, reunión,
-  malestar, "estoy malo", viaje/ausencia/enfermedad SIN duración especificada,
-  "se me complicó"). EN CUALQUIER DUDA SOBRE DURACIÓN → 1.
+Ajusta el delay al TIPO DE MOTIVO del lead. La idea: el seguimiento llega
+cuando el motivo del lead ya se ha resuelto. Demasiado pronto = lead aún
+ocupado y se frustra. Demasiado tarde = pierdes momentum.
 
-- 3 días: SOLO si lead indica EXPLÍCITAMENTE impedimento de varios días
-  ("gripe llevo 2 días", "fuera hasta el viernes" si hoy es jueves,
-  "vuelvo en 3-4 días", "los próximos días imposible").
+─── 1 DÍA — motivo puntual del momento o del día ───
 
-- 7 días: SOLO si lead indica EXPLÍCITAMENTE ausencia ≥ semana:
-  "vacaciones 10 días", "2 semanas fuera", "esta semana imposible",
-  "vuelvo el día X" si faltan 7+ días.
+- Urgencia inmediata: "se me lió ahora", "ya estoy en marcha",
+  "me ha surgido reunión", "me llaman ahora"
+- Lío puntual del día: "tengo movida hoy", "estoy hasta arriba hoy",
+  "tengo lío" sin más contexto temporal
+- Salud SIN duración: "estoy malo", "estoy enfermo", "tengo gripe",
+  "estoy resfriado", "no me encuentro bien", "estoy con fiebre"
+- Compromiso familiar / evento puntual: "tengo boda", "tengo funeral",
+  "tengo cita médica", "evento del colegio", "comunión", "cumpleaños"
+- Cancel sin motivo declarado: "no puedo mañana", "cancela", "lo dejamos"
+
+EN DUDA dentro de estos patrones → 1.
+
+─── 3 DÍAS — motivo de corto plazo (2-4 días) ───
+
+- Viaje SIN duración: "estoy de viaje", "estoy fuera", "me voy de viaje",
+  "tengo viaje" (asume fin de semana / 2-3 días por defecto)
+- Mención de "varios días" / "unos días":
+  "estos días los tengo caóticos", "tengo unos días complicados",
+  "los próximos días imposible", "estos días raros"
+- Mudanza, obra en casa, reformas (sin duración explícita)
+- "Estoy de baja", "estoy con el médico unos días"
+- Salud con duración corta especificada: "llevo 2 días con gripe",
+  "el médico me ha dado 3 días", "estoy malo hace varios días"
+- Lío de varios días: "esta semana imposible los primeros días"
+
+─── 7 DÍAS — una semana o más ───
+
+- "Esta semana imposible" / "no puedo esta semana"
+- "Fin de semana fuera" / "todo el finde liado"
+- Vacaciones SIN número: "estoy de vacaciones", "me voy de vacaciones",
+  "fuera por vacaciones"
+- Viaje con duración semanal o más: "estoy fuera 10 días",
+  "2 semanas fuera", "viaje de una semana", "estoy fuera todo el mes"
+- "Vuelvo el [día que cae 7+ días en el futuro]"
+- "La semana que viene también complicado"
+
+─── DEFAULT EN CASO REALMENTE AMBIGUO sin señal clara ─── → 1 día.
 
 ═══════════════════════════════════════════════════════════════════════════════
 CRITERIOS PARA confidence
