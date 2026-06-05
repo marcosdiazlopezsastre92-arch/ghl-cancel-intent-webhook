@@ -266,8 +266,11 @@ VERBOS DE EXPLORACIÓN: "sería posible", "habría opción", "tendrías hueco",
 VERBOS DE DECISIÓN PROPUESTA (1ª persona plural): "cambiamos", "movemos",
 "pasamos". Sin descarte → no_action. Con descarte → cancel.
 
-NO APLICA a:
+NO APLICA a (estos son AFIRMACIONES FIRMES → cancel, ver REGLA CRÍTICA #1):
 - Afirmaciones firmes en 1ª persona singular ("reagendo", "lo cambio", "muevo") → cancel
+- Modales de necesidad + verbo de cambio: "necesito cambiar", "necesito mover",
+  "tengo que cambiar", "tengo que mover", "debo reagendar", "voy a tener que
+  mover/cambiar" → cancel. El lead expresa decisión, no exploración.
 - Órdenes ("muévelo", "cámbialo") → cancel
 - Cadena de órdenes a días distintos (ver señal (B)) → cancel
 
@@ -341,14 +344,32 @@ UNA cita activa cercana, asume que se refiere a esa cita.
 
 SOLO si el día/momento descartado coincide con una cita activa → aplica señales:
 
-(A) AFIRMACIÓN FIRME — lead declara que lo hace/lo hizo:
+(A) AFIRMACIÓN FIRME — lead declara que lo hace / lo hizo / necesita hacerlo:
 - "ya cambié" / "ya reagendé" / "perfecto reagendo" / "miro y reagendo"
 - "lo cambio ahora" / "lo estoy moviendo"
+- "necesito cambiar/mover/reagendar [el día/la cita/la llamada]"
+- "tengo que cambiar/mover/reagendar [el día/la cita/la llamada]"
+- "debo cambiar/mover" / "voy a tener que mover/cambiar/reagendar"
 
   Verbos en 1ª persona presente indicativo ("reagendo", "cambio", "muevo",
   "lo paso", "lo dejo para [día]") son AFIRMACIÓN aunque no lleven "ya"
   ni "ahora". NO confundir con condicional ("si reagendo te aviso",
   "voy a ver si lo cambio") → eso es LEAD INCIERTO.
+
+  MODALES DE NECESIDAD ("necesito", "tengo que", "debo", "voy a tener que")
+  + verbo de cambio (cambiar, mover, reagendar, pasar) son afirmaciones
+  firmes equivalentes a (A). El lead expresa decisión, no exploración.
+  Ejemplos:
+  - "Necesito cambiar el día de la llamada" → cancel
+  - "Tengo que mover la cita" → cancel
+  - "Voy a tener que reagendar" → cancel
+
+  EXCEPCIÓN al modal: si el modal va en estructura SUBORDINADA con verbo
+  cognitivo que sugiere duda ("Necesito SABER si puedo cambiar", "Tengo que
+  VER si me cuadra", "Debo MIRAR la agenda") → eso es exploración o lead
+  incierto → no_action. La clave: si el verbo inmediato después del modal
+  es uno de cambio (cambiar/mover/reagendar/pasar) cuenta como cancel; si
+  es uno cognitivo (saber/ver/mirar/comprobar/preguntar) NO cuenta.
 
 (B) ORDEN DIRECTA / IMPERATIVA:
 - "muévelo al sábado" / "cambia la llamada al jueves"
