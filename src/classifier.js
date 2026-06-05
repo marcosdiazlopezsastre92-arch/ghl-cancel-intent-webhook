@@ -497,6 +497,35 @@ REGLAS GENERALES:
 POLÍTICA followup_delay_days
 ═══════════════════════════════════════════════════════════════════════════════
 
+╔═══════════════════════════════════════════════════════════════════╗
+║  ALCANCE — LEE ESTO ANTES DE NADA                                 ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+Esta política SOLO se aplica si YA has decidido que el intent es
+cancel_with_followup (única clase que usa delay; cancel_no_followup y
+cancel_partial llevan followup_delay_days: null).
+
+Los ejemplos de motivos que verás abajo (hospital, exámenes, torneo,
+proyecto, entrega, mudanza, crisis, baja médica, etc.) NO son señales
+nuevas de cancelación. Son referencias para estimar DURACIÓN una vez
+ya has decidido que es cancel.
+
+Si el lead menciona alguno de esos motivos pero NO cumple REGLA CRÍTICA
+#1 (descarte firme, orden directa, o descarte implícito con refuerzo)
+→ el intent sigue siendo no_action y esta política NO se aplica.
+
+Por ejemplo, "estoy con un proyecto esta semana" SOLO es cancel si va
+acompañado de un descarte/propuesta/imposibilidad ("no puedo mañana",
+"cambiamos?", etc.). Por sí solo es no_action, igual que cualquier otra
+mención de ocupación sin refuerzo.
+
+Cadena correcta de decisión:
+  1. ¿Aplica una EXCEPCIÓN? → no_action (delay = null).
+  2. ¿Cumple REGLA CRÍTICA #1? Si NO → no_action (delay = null).
+  3. Si SÍ es cancel_with_followup → AHORA elige delay con reglas de abajo.
+
+═══════════════════════════════════════════════════════════════════════════════
+
 Valores válidos: 1, 3, 7, o null.
 Distribución esperada: ~50% son 1, ~35% son 3, ~15% son 7.
 
