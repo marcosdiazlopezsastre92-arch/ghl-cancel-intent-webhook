@@ -15,6 +15,7 @@ const testCasesV2 = require('./testCases-v2');
 const testCasesLite = require('./testCases-lite');
 const testCasesV3 = require('./testCases-v3');
 const testCasesV4 = require('./testCases-v4');
+const testCasesRector = require('./testCases-rector');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -85,6 +86,7 @@ app.get('/health', (_req, res) => {
     liteSuiteSize: Array.isArray(testCasesLite) ? testCasesLite.length : 0,
     v3SuiteSize: Array.isArray(testCasesV3) ? testCasesV3.length : 0,
     v4SuiteSize: Array.isArray(testCasesV4) ? testCasesV4.length : 0,
+    rectorSuiteSize: Array.isArray(testCasesRector) ? testCasesRector.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -384,6 +386,24 @@ app.get('/test/run-v4', requireSecretOnly, async (req, res) => {
   const offset = parseOffset(req);
   const delayMs = parseDelayMs(req, 1200);
   const response = await runSuite({ suite: testCasesV4, verbose, categoryFilter, limit, offset, delayMs });
+  res.json(response);
+});
+
+// RECTOR suite (R1-R7 — 29 cases). Valida realineamiento filosófico aplicado
+// el 2026-06-11: PRINCIPIO RECTOR + REGLA DE PALABRA SUELTA AMBIGUA +
+// PRINCIPIO DE REAFIRMACIÓN + POST-ENLACE PRINCIPIO PREVIO + EXCEPCIÓN.
+// Casos estrella: R1-001 (PASO 😅😅), R3-001 (reaffirm post-link),
+// R6-001..004 (cancel firme + silencio/ambigüedad post-link → cancel).
+app.get('/test/run-rector', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const offset = parseOffset(req);
+  const delayMs = parseDelayMs(req, 1200);
+  const response = await runSuite({ suite: testCasesRector, verbose, categoryFilter, limit, offset, delayMs });
   res.json(response);
 });
 
