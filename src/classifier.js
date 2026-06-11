@@ -600,7 +600,6 @@ MAPEO INTENT → CAMPOS (nombres EXACTOS en el JSON)
                          followup_delay_days: null
 
 REGLAS GENERALES:
-- Mejor "no_action" si tienes la más mínima duda.
 - appointment_ids_to_noshow contiene ÚNICAMENTE ids de la lista activa.
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -608,7 +607,7 @@ POLÍTICA followup_delay_days
 ═══════════════════════════════════════════════════════════════════════════════
 
 ╔═══════════════════════════════════════════════════════════════════╗
-║  ALCANCE — LEE ESTO ANTES DE NADA                                 ║
+║  ALCANCE — LEE ESTO ANTES DE ASIGNAR DELAY                        ║
 ╚═══════════════════════════════════════════════════════════════════╝
 
 Esta política SOLO se aplica si YA has decidido que el intent es
