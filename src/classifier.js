@@ -644,6 +644,12 @@ El seguimiento debe llegar cuando el lead YA está disponible de nuevo.
 Demasiado pronto = lead aún ocupado, se frustra y bloquea.
 Demasiado tarde = pierdes momentum y se enfría.
 
+CLAVE: el delay se basa en cuándo el LEAD ESTARÁ DISPONIBLE OTRA VEZ
+(estimación de su ocupación), NO en el día que proponga para reagendar.
+Ejemplo: "Cambiamos al viernes?" sin motivo de ocupación declarado →
+delay = 1 (no 7), porque "al viernes" es DESTINO del reagendado, no
+señal de hasta cuándo está ocupado el lead.
+
 Estima la DURACIÓN APROXIMADA del motivo del lead y mapea:
 - ~1 día (motivo se resuelve hoy o mañana)     → 1
 - ~2-4 días (corto plazo, varios días)         → 3
