@@ -30,6 +30,13 @@ const DOUBLE_CHECK_INTENTS = new Set([
   'cancel_no_followup',
 ]);
 
+// Banda BORDERLINE para no_action — el prompt instruye a Haiku a marcar con
+// confidence 0.80-0.81 los casos donde dudó entre cancel y no_action y
+// defaultó a no_action. Esos son los falsos negativos candidatos. Se escalan
+// a Sonnet para auditoría. Resto de no_action (con conf ≥0.82) no se revisan.
+const BORDERLINE_NOACTION_MIN = 0.80;
+const BORDERLINE_NOACTION_MAX = 0.82;
+
 const VALID_INTENTS = new Set([
   'no_action',
   'cancel_with_followup',
@@ -136,6 +143,23 @@ porque la EXCEPCIÓN 1 aplica primero.
 7. CASO ESPECIAL ENTRENADOR → no_action (soft) o cancel_no_followup (firme)
 8. REGLA CRÍTICA #1 (A, B, C) → cancel_with_followup (con CHEQUEO cancel_partial)
 9. Default → no_action
+
+╔═══════════════════════════════════════════════════════════════════╗
+║  ATAJO PARA "no llego" — frase de alta frecuencia                 ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+Cuando veas "no llego" en el mensaje del lead, decide así en este orden:
+1. ¿Hay término técnico en el mismo mensaje (wifi, internet, Zoom, cámara,
+   link, etc.)? → no_action (EXCEPCIÓN 1 PROBLEMAS TÉCNICOS).
+2. ¿Hay cualificador de retraso ("tarde", minutos concretos, "al inicio",
+   "a tiempo")? → no_action (EXCEPCIÓN 2 RETRASOS).
+3. Si no hay ni término técnico ni cualificador de retraso → cancel (REGLA
+   CRÍTICA #1).
+
+Ejemplos:
+- "no llego, no tengo wifi" → técnico → no_action
+- "no llego al inicio" → retraso → no_action
+- "no llego mañana" → cancel
 
 EXCEPCIÓN — PROBLEMAS TÉCNICOS:
 
@@ -277,6 +301,11 @@ NO APLICA a (estos son AFIRMACIONES FIRMES → cancel, ver REGLA CRÍTICA #1):
   mover/cambiar" → cancel. El lead expresa decisión, no exploración.
 - Órdenes ("muévelo", "cámbialo") → cancel
 - Cadena de órdenes a días distintos (ver señal (B)) → cancel
+- Jerga de ocupación ("estoy a tope", "tengo lío", "estoy hasta arriba",
+  "estoy liada/o", "tengo movida", "voy mal de tiempo") + refuerzo (propuesta
+  de cambio "cambiamos?", "movemos?", "hay opción?" o imposibilidad explícita
+  "no puedo", "no llego", "imposible") → cancel. Va a REGLA CRÍTICA #1 (C)(2),
+  no es exploración. Esta excepción 6 NO bloquea ese caso.
 
 Ejemplos no_action: "Podemos cambiar al sábado?", "Hay opción del jueves?",
 "Tendrías hueco el lunes?", "Cambiamos día?".
@@ -576,7 +605,6 @@ Cadena correcta de decisión:
 ═══════════════════════════════════════════════════════════════════════════════
 
 Valores válidos: 1, 3, 7, o null.
-Distribución esperada: ~50% son 1, ~35% son 3, ~15% son 7.
 
 ─── PRINCIPIO GENERAL ───
 
@@ -596,7 +624,7 @@ Para estimar la duración usa, en este orden:
      piensa cuánto suele durar lo que el lead describe.
   3. Si NO hay info de duración alguna ("no puedo mañana", "cancela") → 1.
 
-═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 PATRONES TIPIFICADOS (referencia rápida cuando coincidan literal)
 ═══════════════════════════════════════════════════════════════════
 
@@ -635,7 +663,7 @@ PATRONES TIPIFICADOS (referencia rápida cuando coincidan literal)
 - "Vuelvo el [día que cae 7+ días en el futuro]"
 - "La semana que viene también complicado"
 
-═══════════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════
 INFERENCIA INTELIGENTE — cuando no encaja en patrones literales
 ═══════════════════════════════════════════════════════════════════
 
@@ -683,19 +711,23 @@ CRITERIOS PARA confidence
 
 - 0.95-1.00: señal explícita sin ambigüedad ("cancela mañana" → 0.98).
 - 0.85-0.94: señal clara, requiere interpretar contexto multi-mensaje.
-- 0.80-0.84: aplicas excepción específica que requiere lectura cuidadosa.
+- 0.82-0.84: aplicas excepción específica que requiere lectura cuidadosa.
+- 0.80-0.81: BORDERLINE — usa esta banda EXCLUSIVAMENTE cuando dudaste entre
+  cancel y no_action y defaultaste a no_action. Así el sistema puede auditar
+  esos falsos negativos y escalarlos a Sonnet para revisión.
 - < 0.80: caso límite. Sistema fuerza no_action si confidence <0.80 para
-  intents ≠ no_action. Si dudas a este nivel para cancel, devuelve no_action
-  directamente con confidence ~0.85.
+  intents ≠ no_action.
 
 ═══════════════════════════════════════════════════════════════════════════════
-Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional):
+Devuelve EXCLUSIVAMENTE un JSON válido (sin markdown, sin texto adicional).
+IMPORTANTE: rellena las claves en el ORDEN EXACTO mostrado. El "reasoning" va
+PRIMERO para que el razonamiento condicione las decisiones posteriores:
 {
+  "reasoning": "breve explicación en una frase de tu razonamiento siguiendo la precedencia",
   "intent": "no_action" | "cancel_with_followup" | "cancel_no_followup" | "cancel_partial",
   "confidence": 0.0-1.0,
   "appointment_ids_to_noshow": ["id1", "id2"],
-  "followup_delay_days": 1 | 3 | 7 | null,
-  "reasoning": "breve explicación en una frase"
+  "followup_delay_days": 1 | 3 | 7 | null
 }`;
 
 function parseClaudeJson(text) {
@@ -827,16 +859,28 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   let trustedFromDoubleCheck = false;
 
   // ============== DOUBLE-CHECK with Sonnet ==============
+  // Dispara en dos escenarios:
+  //   (a) Intent es cancel y confidence < DOUBLE_CHECK_THRESHOLD (0.95)
+  //   (b) Intent es no_action en banda BORDERLINE (0.80-0.82) — donde
+  //       Haiku señaló que dudó entre cancel y no_action.
+  // Caso (b) cubre los falsos negativos que antes escapaban a revisión.
   let doubleCheckMeta = null;
-  if (
-    DOUBLE_CHECK_ENABLED &&
-    DOUBLE_CHECK_INTENTS.has(parsed.intent) &&
-    conf < DOUBLE_CHECK_THRESHOLD
-  ) {
+  const isBorderlineNoAction = (
+    parsed.intent === 'no_action' &&
+    conf >= BORDERLINE_NOACTION_MIN &&
+    conf < BORDERLINE_NOACTION_MAX
+  );
+  const shouldDoubleCheck = DOUBLE_CHECK_ENABLED && (
+    (DOUBLE_CHECK_INTENTS.has(parsed.intent) && conf < DOUBLE_CHECK_THRESHOLD) ||
+    isBorderlineNoAction
+  );
+
+  if (shouldDoubleCheck) {
     logger.info('triggering double-check with Sonnet', {
       haiku_intent: parsed.intent,
       haiku_confidence: conf,
       threshold: DOUBLE_CHECK_THRESHOLD,
+      borderlineNoAction: isBorderlineNoAction,
       doubleCheckModel: DOUBLE_CHECK_MODEL,
     });
 
@@ -870,6 +914,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           sonnet_confidence: sonnetParsed.confidence,
           sonnet_reasoning: sonnetReasoning,
           changed,
+          borderlineNoAction: isBorderlineNoAction,
         });
 
         doubleCheckMeta = {
@@ -881,6 +926,7 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           sonnetConfidence: sonnetParsed.confidence,
           sonnetReasoning,
           changed,
+          borderlineNoAction: isBorderlineNoAction,
         };
 
         parsed = sonnetParsed;
