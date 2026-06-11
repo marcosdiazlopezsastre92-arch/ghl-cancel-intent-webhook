@@ -101,6 +101,35 @@ const SYSTEM_PROMPT = `Eres un clasificador de intención de cancelación de lla
 Lees una conversación de WhatsApp/Instagram/SMS entre el coach y un lead, junto con la lista de
 llamadas futuras activas. Decides si el lead pide cancelar/reagendar alguna(s) o ninguna.
 
+═══════════════════════════════════════════════════════════════════════════════
+PRINCIPIO RECTOR — ASIMETRÍA DE COSTES (LEE ESTO ANTES QUE NADA)
+═══════════════════════════════════════════════════════════════════════════════
+
+Cancelar erróneamente cuesta MÁS que mantener una llamada erróneamente.
+- Cancel FP (falso positivo): lead confuso recibiendo "reagenda", noshow falso,
+  reparación manual del coach, daño a la relación.
+- Cancel FN (falso negativo): cita activa, lead se presenta o noshow real natural.
+
+POR DEFECTO → mantener la llamada activa. En cualquier duda → no_action.
+
+SEÑAL FUERTE — solo cancela si hay una de estas:
+- Verbo INEQUÍVOCO de cancelación dirigido a la llamada: 'cancela', 'anula',
+  'cancelo', 'no puedo el [X]', 'cambia/mueve la llamada', 'necesito reagendar'.
+- Descarte del día con compromiso físico explícito: 'estoy de viaje', 'tengo
+  boda/funeral/cita médica', 'estoy fuera mañana'.
+- Las condiciones de REGLA CRÍTICA #1 (A/B/C) descritas más abajo.
+
+SEÑAL DÉBIL — NO basta para cancelar (→ no_action):
+- Palabras AMBIGUAS sueltas que suenan a rechazo pero tienen múltiples lecturas:
+  'paso', 'nada', 'uf', '🙄', '😅' sola, 'no' sola sin verbo de descarte. Pueden
+  ser respuesta a story de IG, sarcasmo, reacción a otra cosa.
+- Mensaje corto sin verbo claro de descarte DESPUÉS de una confirmación reciente
+  del lead. La confirmación previa pesa más que la reacción aislada ambigua.
+- Verbos INEQUÍVOCOS ('cancelo', 'anula', 'imposible') SÍ son señal fuerte
+  aunque vayan solos — porque su significado no admite múltiples lecturas.
+
+Ante señal débil sin reforzar por una fuerte → no_action.
+
 PRINCIPIO DE LECTURA — MENSAJES CONSECUTIVOS COMO UNIDAD:
 
 En WhatsApp/Instagram/SMS la gente escribe en RÁFAGAS. Antes de clasificar, agrupa mentalmente
@@ -109,6 +138,24 @@ Interpreta esa unidad como una sola frase conectada por conjunciones implícitas
 
 Ejemplo: "como máximo 65€" + "si no es posible dímelo" + "y no hace falta la llamada"
 → Unidad: objeción condicional de presupuesto con manera suave de cancelar → no_action.
+
+PRINCIPIO DE REAFIRMACIÓN — LO MÁS RECIENTE Y EXPLÍCITO MANDA:
+
+Operando dentro del marco de la UNIDAD: si dentro o entre ráfagas el lead primero
+cancela/descarta y luego REAFIRMA EXPLÍCITAMENTE su asistencia, la reafirmación
+reciente ANULA la cancelación previa → no_action.
+
+Ejemplos:
+- "no puedo mañana... bueno al final sí, déjalo" (ráfaga única) → no_action
+- "tengo que cancelar" + después "ah espera, ya me cuadra" → no_action
+- "paso de la llamada" + después "no, al final voy" → no_action
+
+REQUISITOS para que aplique:
+- Reafirmación EXPLÍCITA ("al final sí", "ahí estaré", "ya me cuadra", "déjalo
+  en pie", "sigo yendo", "no, voy"). NO cuenta silencio, "vale" solo, "ok",
+  "miro", "luego te digo" o cualquier respuesta ambigua.
+- Debe venir DESPUÉS de la cancelación en orden temporal.
+- Si la cadena es cancel → reaffirm → cancel, la última explícita gana → cancel.
 
 ═══════════════════════════════════════════════════════════════════════════════
 EXCEPCIONES — precedencia (evalúa en este orden, para en la primera que coincida)
@@ -341,11 +388,16 @@ cita post-enlace NO va a appointment_ids_to_noshow; solo las VIEJAS.
 CASOS POST-ENLACE (cuando el Coach envió el enlace):
 
 PRINCIPIO PREVIO — APLICA ANTES QUE TODO LO DEMÁS:
-Una cancelación firme del lead ANTES del enlace NO se anula por el silencio
-posterior. El enlace es facilitador del reagendado, no condición de la
-cancelación. Si el lead canceló claramente antes (con o sin propuesta de día
-alternativo) → cancel_with_followup, independientemente de si después aceptó,
-rechazó o calló sobre el enlace.
+Una cancelación firme del lead ANTES del enlace NO se anula por silencio NI
+ambigüedad posterior. El enlace es facilitador del reagendado, no condición
+de la cancelación. Si el lead canceló claramente antes (con o sin propuesta
+de día alternativo), por defecto → cancel_with_followup.
+
+EXCEPCIÓN AL PRINCIPIO: la cancelación SÍ se anula si el lead REAFIRMA
+EXPLÍCITAMENTE su asistencia después ("al final sí puedo", "me cuadra, ahí
+estaré", "no, sigo yendo, era broma"). Lo más reciente y explícito manda
+→ no_action. NO cuenta como reafirmación: silencio, "vale" solo, "ok",
+"miro", "luego te digo" o cualquier respuesta ambigua.
 
 Solo si NO hubo cancelación previa firme, aplica las señales post-enlace:
 - Lead acepta CLARAMENTE ("vale gracias", "perfecto, lo cambio", "miro y reagendo",
