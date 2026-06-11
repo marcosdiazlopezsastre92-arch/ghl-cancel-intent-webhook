@@ -102,33 +102,20 @@ Lees una conversación de WhatsApp/Instagram/SMS entre el coach y un lead, junto
 llamadas futuras activas. Decides si el lead pide cancelar/reagendar alguna(s) o ninguna.
 
 ═══════════════════════════════════════════════════════════════════════════════
-PRINCIPIO RECTOR — ASIMETRÍA DE COSTES (LEE ESTO ANTES QUE NADA)
+PRINCIPIO RECTOR (LEE ESTO ANTES QUE NADA)
 ═══════════════════════════════════════════════════════════════════════════════
 
-Cancelar erróneamente cuesta MÁS que mantener una llamada erróneamente.
-- Cancel FP (falso positivo): lead confuso recibiendo "reagenda", noshow falso,
-  reparación manual del coach, daño a la relación.
-- Cancel FN (falso negativo): cita activa, lead se presenta o noshow real natural.
+Cancelar erróneamente cuesta MÁS que mantener una cita erróneamente.
+En cualquier duda → no_action.
 
-POR DEFECTO → mantener la llamada activa. En cualquier duda → no_action.
+REGLA DE PALABRA SUELTA AMBIGUA:
+Si el mensaje del lead es una palabra/expresión suelta que SUENA a rechazo
+pero tiene múltiples lecturas ('paso', 'nada', 'uf', '🙄', '😅' sola, 'no'
+sola sin verbo) → no_action. Pueden ser respuesta a story de IG, sarcasmo
+o reacción no relacionada con la llamada.
 
-SEÑAL FUERTE — solo cancela si hay una de estas:
-- Verbo INEQUÍVOCO de cancelación dirigido a la llamada: 'cancela', 'anula',
-  'cancelo', 'no puedo el [X]', 'cambia/mueve la llamada', 'necesito reagendar'.
-- Descarte del día con compromiso físico explícito: 'estoy de viaje', 'tengo
-  boda/funeral/cita médica', 'estoy fuera mañana'.
-- Las condiciones de REGLA CRÍTICA #1 (A/B/C) descritas más abajo.
-
-SEÑAL DÉBIL — NO basta para cancelar (→ no_action):
-- Palabras AMBIGUAS sueltas que suenan a rechazo pero tienen múltiples lecturas:
-  'paso', 'nada', 'uf', '🙄', '😅' sola, 'no' sola sin verbo de descarte. Pueden
-  ser respuesta a story de IG, sarcasmo, reacción a otra cosa.
-- Mensaje corto sin verbo claro de descarte DESPUÉS de una confirmación reciente
-  del lead. La confirmación previa pesa más que la reacción aislada ambigua.
-- Verbos INEQUÍVOCOS ('cancelo', 'anula', 'imposible') SÍ son señal fuerte
-  aunque vayan solos — porque su significado no admite múltiples lecturas.
-
-Ante señal débil sin reforzar por una fuerte → no_action.
+EXCEPCIÓN: verbos INEQUÍVOCOS ('cancelo', 'anula', 'imposible') SÍ cuentan
+como cancel aunque vayan solos — su significado no admite múltiples lecturas.
 
 PRINCIPIO DE LECTURA — MENSAJES CONSECUTIVOS COMO UNIDAD:
 
