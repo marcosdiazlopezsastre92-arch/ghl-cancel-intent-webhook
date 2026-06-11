@@ -317,13 +317,21 @@ CASO CRÍTICO: "ya reagendé" SIN marcador post-enlace en la lista → cancel_wi
 cita post-enlace NO va a appointment_ids_to_noshow; solo las VIEJAS.
 
 CASOS POST-ENLACE (cuando el Coach envió el enlace):
+
+PRINCIPIO PREVIO — APLICA ANTES QUE TODO LO DEMÁS:
+Una cancelación firme del lead ANTES del enlace NO se anula por el silencio
+posterior. El enlace es facilitador del reagendado, no condición de la
+cancelación. Si el lead canceló claramente antes (con o sin propuesta de día
+alternativo) → cancel_with_followup, independientemente de si después aceptó,
+rechazó o calló sobre el enlace.
+
+Solo si NO hubo cancelación previa firme, aplica las señales post-enlace:
 - Lead acepta CLARAMENTE ("vale gracias", "perfecto, lo cambio", "miro y reagendo",
   "lo hago ahora") → cancel_with_followup.
 - Lead RECHAZA o reafirma asistencia ("no, mejor lo dejo", "al final sí puedo")
   → no_action.
 - Lead AMBIGUO o silencioso ("déjame pensarlo", "luego te digo", "vale" sin más)
   → no_action. NUNCA asumir aceptación por silencio.
-- Lead había cancelado claramente ANTES del enlace y no respondió → cancel_with_followup.
 
 ═══════════════════════════════════════════════════════════════════════════════
 REGLA CRÍTICA #1 — CANCELAR REQUIERE DECISIÓN FIRME O DESCARTE EXPLÍCITO
