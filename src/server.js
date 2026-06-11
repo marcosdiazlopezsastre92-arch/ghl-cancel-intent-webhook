@@ -16,6 +16,7 @@ const testCasesLite = require('./testCases-lite');
 const testCasesV3 = require('./testCases-v3');
 const testCasesV4 = require('./testCases-v4');
 const testCasesRector = require('./testCases-rector');
+const testCasesFinal = require('./testCases-final');
 
 const app = express();
 app.use(express.json({ limit: '512kb' }));
@@ -87,6 +88,7 @@ app.get('/health', (_req, res) => {
     v3SuiteSize: Array.isArray(testCasesV3) ? testCasesV3.length : 0,
     v4SuiteSize: Array.isArray(testCasesV4) ? testCasesV4.length : 0,
     rectorSuiteSize: Array.isArray(testCasesRector) ? testCasesRector.length : 0,
+    finalSuiteSize: Array.isArray(testCasesFinal) ? testCasesFinal.length : 0,
     timestamp: new Date().toISOString(),
   });
 });
@@ -228,8 +230,6 @@ async function runSuite({ suite, verbose, categoryFilter, limit, offset = 0, del
       return a.category.localeCompare(b.category);
     });
 
-  // Double-check stats: how often the safety net fired and whether Sonnet
-  // changed or confirmed Haiku's decision.
   let doubleCheckTriggered = 0;
   let doubleCheckChanged = 0;
   let doubleCheckConfirmed = 0;
@@ -274,7 +274,7 @@ function parseDelayMs(req, defaultMs) {
   if (raw === undefined || raw === null || raw === '') return defaultMs;
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n) || n < 0) return defaultMs;
-  return Math.min(n, 10000); // cap at 10s for safety
+  return Math.min(n, 10000);
 }
 
 function parseOffset(req) {
@@ -311,7 +311,6 @@ app.get('/test/run-multimsg', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// Edge case suite (E1-E10 — 140 cases)
 app.get('/test/run-edge', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -325,7 +324,6 @@ app.get('/test/run-edge', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// V2 suite (N1-N13 — 400 cases). Covers NEW exception + regressions.
 app.get('/test/run-v2', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -339,9 +337,6 @@ app.get('/test/run-v2', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// LITE suite (L1-L13 — 150 balanced cases). 1200ms delay between calls
-// by default to respect Anthropic tier 1 rate limit (~50 RPM).
-// Estimated runtime: ~5-6 minutes.
 app.get('/test/run-lite', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -355,9 +350,6 @@ app.get('/test/run-lite', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// V3 suite (V1-V12 — 200 cases). Validates new exploratory-question rule
-// + all regressions. Run by category via the run-v3-suite-lotes.sh script
-// to avoid Railway request timeouts.
 app.get('/test/run-v3', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -371,11 +363,6 @@ app.get('/test/run-v3', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// V4 suite (T01-T13 — 200 cases). Torture test: contradicciones, sarcasmo,
-// dialectos, typos extremos, cancel enterrado, cambios múltiples, emociones
-// ambiguas, ambigüedades temporales, post-link complejo.
-// Run via run-v4-suite-lotes.sh. Use ?offset=N&limit=M to page through a
-// category that would otherwise exceed Railway's 60s proxy timeout.
 app.get('/test/run-v4', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -389,11 +376,7 @@ app.get('/test/run-v4', requireSecretOnly, async (req, res) => {
   res.json(response);
 });
 
-// RECTOR suite (R1-R7 — 29 cases). Valida realineamiento filosófico aplicado
-// el 2026-06-11: PRINCIPIO RECTOR + REGLA DE PALABRA SUELTA AMBIGUA +
-// PRINCIPIO DE REAFIRMACIÓN + POST-ENLACE PRINCIPIO PREVIO + EXCEPCIÓN.
-// Casos estrella: R1-001 (PASO 😅😅), R3-001 (reaffirm post-link),
-// R6-001..004 (cancel firme + silencio/ambigüedad post-link → cancel).
+// RECTOR suite (R1-R7 — 28 cases).
 app.get('/test/run-rector', requireSecretOnly, async (req, res) => {
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
@@ -404,6 +387,21 @@ app.get('/test/run-rector', requireSecretOnly, async (req, res) => {
   const offset = parseOffset(req);
   const delayMs = parseDelayMs(req, 1200);
   const response = await runSuite({ suite: testCasesRector, verbose, categoryFilter, limit, offset, delayMs });
+  res.json(response);
+});
+
+// FINAL suite (F1-F17 — ~85 cases). Suite comprehensive de validación con
+// cobertura amplia de variaciones realistas en todas las categorías.
+app.get('/test/run-final', requireSecretOnly, async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ ok: false, error: 'ANTHROPIC_API_KEY missing on server' });
+  }
+  const verbose = String(req.query.verbose || '').toLowerCase() === 'true';
+  const categoryFilter = String(req.query.category || '').trim();
+  const limit = parseInt(req.query.limit, 10);
+  const offset = parseOffset(req);
+  const delayMs = parseDelayMs(req, 1200);
+  const response = await runSuite({ suite: testCasesFinal, verbose, categoryFilter, limit, offset, delayMs });
   res.json(response);
 });
 
