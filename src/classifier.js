@@ -30,13 +30,6 @@ const DOUBLE_CHECK_INTENTS = new Set([
   'cancel_no_followup',
 ]);
 
-// Banda BORDERLINE para no_action — el prompt instruye a Haiku a marcar con
-// confidence 0.80-0.81 los casos donde dudó entre cancel y no_action y
-// defaultó a no_action. Esos son los falsos negativos candidatos. Se escalan
-// a Sonnet para auditoría. Resto de no_action (con conf ≥0.82) no se revisan.
-const BORDERLINE_NOACTION_MIN = 0.80;
-const BORDERLINE_NOACTION_MAX = 0.82;
-
 const VALID_INTENTS = new Set([
   'no_action',
   'cancel_with_followup',
@@ -624,7 +617,7 @@ Para estimar la duración usa, en este orden:
      piensa cuánto suele durar lo que el lead describe.
   3. Si NO hay info de duración alguna ("no puedo mañana", "cancela") → 1.
 
-═══════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════════
 PATRONES TIPIFICADOS (referencia rápida cuando coincidan literal)
 ═══════════════════════════════════════════════════════════════════
 
@@ -663,7 +656,7 @@ PATRONES TIPIFICADOS (referencia rápida cuando coincidan literal)
 - "Vuelvo el [día que cae 7+ días en el futuro]"
 - "La semana que viene también complicado"
 
-═══════════════════════════════════════════════════════════════
+═══════════════════════════════════════════════════════════════════
 INFERENCIA INTELIGENTE — cuando no encaja en patrones literales
 ═══════════════════════════════════════════════════════════════════
 
@@ -711,10 +704,7 @@ CRITERIOS PARA confidence
 
 - 0.95-1.00: señal explícita sin ambigüedad ("cancela mañana" → 0.98).
 - 0.85-0.94: señal clara, requiere interpretar contexto multi-mensaje.
-- 0.82-0.84: aplicas excepción específica que requiere lectura cuidadosa.
-- 0.80-0.81: BORDERLINE — usa esta banda EXCLUSIVAMENTE cuando dudaste entre
-  cancel y no_action y defaultaste a no_action. Así el sistema puede auditar
-  esos falsos negativos y escalarlos a Sonnet para revisión.
+- 0.80-0.84: aplicas excepción específica que requiere lectura cuidadosa.
 - < 0.80: caso límite. Sistema fuerza no_action si confidence <0.80 para
   intents ≠ no_action.
 
@@ -859,28 +849,22 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
   let trustedFromDoubleCheck = false;
 
   // ============== DOUBLE-CHECK with Sonnet ==============
-  // Dispara en dos escenarios:
-  //   (a) Intent es cancel y confidence < DOUBLE_CHECK_THRESHOLD (0.95)
-  //   (b) Intent es no_action en banda BORDERLINE (0.80-0.82) — donde
-  //       Haiku señaló que dudó entre cancel y no_action.
-  // Caso (b) cubre los falsos negativos que antes escapaban a revisión.
+  // Solo dispara para intents de cancel con confidence < DOUBLE_CHECK_THRESHOLD.
+  // Decisión consciente: NO revisamos no_action. La asimetría de costes lo
+  // justifica — un cancel erróneo (FP) tiene coste alto (lead confuso,
+  // noshow falso, reparación manual); un cancel perdido (FN) tiene coste
+  // bajo (cita activa, lead se presenta o noshow normal). Revisar no_action
+  // amplificaría el riesgo en la dirección equivocada.
   let doubleCheckMeta = null;
-  const isBorderlineNoAction = (
-    parsed.intent === 'no_action' &&
-    conf >= BORDERLINE_NOACTION_MIN &&
-    conf < BORDERLINE_NOACTION_MAX
-  );
-  const shouldDoubleCheck = DOUBLE_CHECK_ENABLED && (
-    (DOUBLE_CHECK_INTENTS.has(parsed.intent) && conf < DOUBLE_CHECK_THRESHOLD) ||
-    isBorderlineNoAction
-  );
-
-  if (shouldDoubleCheck) {
+  if (
+    DOUBLE_CHECK_ENABLED &&
+    DOUBLE_CHECK_INTENTS.has(parsed.intent) &&
+    conf < DOUBLE_CHECK_THRESHOLD
+  ) {
     logger.info('triggering double-check with Sonnet', {
       haiku_intent: parsed.intent,
       haiku_confidence: conf,
       threshold: DOUBLE_CHECK_THRESHOLD,
-      borderlineNoAction: isBorderlineNoAction,
       doubleCheckModel: DOUBLE_CHECK_MODEL,
     });
 
@@ -914,7 +898,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           sonnet_confidence: sonnetParsed.confidence,
           sonnet_reasoning: sonnetReasoning,
           changed,
-          borderlineNoAction: isBorderlineNoAction,
         });
 
         doubleCheckMeta = {
@@ -926,7 +909,6 @@ async function classify({ messages, appointments, apiKey, openaiApiKey, ghlAutho
           sonnetConfidence: sonnetParsed.confidence,
           sonnetReasoning,
           changed,
-          borderlineNoAction: isBorderlineNoAction,
         };
 
         parsed = sonnetParsed;
